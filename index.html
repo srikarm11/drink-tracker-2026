@@ -98,13 +98,14 @@
       const CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
 
       // Check for existing session on mount
-      // Note: We also rely on onAuthStateChange INITIAL_SESSION event
+      // Note: We rely on onAuthStateChange INITIAL_SESSION event, but also call checkSession as backup
       useEffect(() => {
         // Wait a moment for Supabase to initialize, then check session
+        // The INITIAL_SESSION event should fire first, but we'll also check manually
         const timer = setTimeout(() => {
           console.log('[DEBUG] Component mounted, calling checkSession after delay');
           checkSession();
-        }, 200);
+        }, 500); // Increased delay to give INITIAL_SESSION time to fire
         
         return () => clearTimeout(timer);
       }, []);
@@ -271,25 +272,67 @@
             // Fallback: If getSession() returns null but we have data in localStorage, try to restore manually
             console.log('[DEBUG] ⚠️ getSession() returned null but localStorage has session data');
             console.log('[DEBUG] Attempting manual session restoration...');
+            console.log('[DEBUG] Parsed session data:', {
+              hasUser: !!parsedSession.user,
+              userEmail: parsedSession.user.email,
+              userId: parsedSession.user.id,
+              expiresAt: parsedSession.expires_at,
+              hasAccessToken: !!parsedSession.access_token
+            });
             
             // Check if token is expired
             const expiresAt = parsedSession.expires_at;
             if (expiresAt) {
               const now = Math.floor(Date.now() / 1000);
+              const timeUntilExpiry = expiresAt - now;
+              console.log('[DEBUG] Token expiry check:', {
+                expiresAt,
+                now,
+                timeUntilExpiry,
+                isExpired: expiresAt < now,
+                minutesUntilExpiry: Math.floor(timeUntilExpiry / 60)
+              });
+              
               if (expiresAt < now) {
-                console.log('[DEBUG] Token in localStorage is expired, cannot restore');
-                setSession(null);
-                setUser(null);
-                setAuthLoading(false);
-                return;
+                console.log('[DEBUG] ✗ Token in localStorage is expired, cannot restore');
+                // Try to refresh the session
+                console.log('[DEBUG] Attempting to refresh expired session...');
+                try {
+                  const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+                  if (refreshError || !refreshedSession) {
+                    console.error('[DEBUG] ✗ Refresh failed:', refreshError?.message);
+                    setSession(null);
+                    setUser(null);
+                    setAuthLoading(false);
+                    return;
+                  }
+                  console.log('[DEBUG] ✓ Session refreshed successfully');
+                  setSession(refreshedSession);
+                  setUser(refreshedSession.user);
+                  loadCachedDrinks(refreshedSession.user.id);
+                  setAuthLoading(false);
+                  return;
+                } catch (refreshErr) {
+                  console.error('[DEBUG] ✗ Exception during refresh:', refreshErr);
+                  setSession(null);
+                  setUser(null);
+                  setAuthLoading(false);
+                  return;
+                }
               }
             }
             
             // Try to set the session manually
-            console.log('[DEBUG] Setting session from localStorage data');
+            console.log('[DEBUG] ✓ Token is valid, setting session from localStorage data');
             setSession(parsedSession);
             setUser(parsedSession.user);
-            console.log('[DEBUG] Manual restoration complete - user:', parsedSession.user.email);
+            console.log('[DEBUG] ✓ Manual restoration complete - user:', parsedSession.user.email);
+            console.log('[DEBUG] State should now be set - verifying...');
+            
+            // Verify state was set (check in next render)
+            setTimeout(() => {
+              console.log('[DEBUG] State verification - session:', !!session, 'user:', user?.email);
+            }, 100);
             
             // Load cached data
             loadCachedDrinks(parsedSession.user.id);
@@ -434,8 +477,9 @@
       };
 
       // Listen for auth changes (including email confirmation)
+      // This MUST be set up before checkSession runs
       useEffect(() => {
-        console.log('[DEBUG] Setting up auth state change listener');
+        console.log('[DEBUG] Setting up auth state change listener (should run FIRST)');
         
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
           console.log('[DEBUG] ===== Auth state changed =====');
@@ -471,23 +515,36 @@
             setCacheTimestamp(null);
           } else if (event === 'INITIAL_SESSION') {
             // This fires when Supabase restores a session from storage
-            console.log('[DEBUG] ===== INITIAL_SESSION EVENT =====');
+            // This is the PRIMARY way sessions are restored
+            console.log('[DEBUG] ===== INITIAL_SESSION EVENT (PRIMARY RESTORE) =====');
             if (session && session.user) {
-              console.log('[DEBUG] ✓ INITIAL_SESSION - session found! Restoring:', session.user.email);
+              console.log('[DEBUG] ✓✓✓ INITIAL_SESSION - session found! Restoring:', session.user.email);
               setSession(session);
               setUser(session.user);
               setAuthLoading(false); // Session restored, we're done loading
+              
+              // Load cached data
+              loadCachedDrinks(session.user.id);
             } else {
               console.log('[DEBUG] ✗ INITIAL_SESSION - no session found');
-              setSession(null);
-              setUser(null);
+              // Only clear if we don't have a user (might have been manually restored)
+              const currentUser = user; // Capture current user before state update
+              if (!currentUser) {
+                console.log('[DEBUG] No existing user, clearing state');
+                setSession(null);
+                setUser(null);
+              } else {
+                console.log('[DEBUG] User already exists from manual restore, keeping state');
+              }
               setAuthLoading(false);
             }
           } else {
             console.log('[DEBUG] Other auth event:', event);
             // For other events, update state if we have a session
-            setSession(session);
-            setUser(session?.user ?? null);
+            if (session) {
+              setSession(session);
+              setUser(session.user);
+            }
           }
           console.log('[DEBUG] ===== Auth state change handler complete =====');
         });
