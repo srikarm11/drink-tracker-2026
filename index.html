@@ -90,16 +90,29 @@
           const { data, error } = await supabase.auth.signUp({
             email: email,
             password: password,
+            options: {
+              emailRedirectTo: `${window.location.origin}${window.location.pathname}`
+            }
           });
 
           if (error) throw error;
 
           if (data.user) {
-            setUser(data.user);
-            setSession(data.session);
-            setShowSignup(false);
-            setEmail('');
-            setPassword('');
+            // If session exists, user is immediately signed in (email confirmation disabled)
+            // If no session, user needs to confirm email first
+            if (data.session) {
+              setUser(data.user);
+              setSession(data.session);
+              setShowSignup(false);
+              setEmail('');
+              setPassword('');
+            } else {
+              // Email confirmation required
+              setShowSignup(false);
+              setEmail('');
+              setPassword('');
+              alert('Account created! Please check your email to confirm your account before signing in.');
+            }
           }
         } catch (error) {
           setAuthError(error.message);
@@ -154,11 +167,20 @@
         }
       };
 
-      // Listen for auth changes
+      // Listen for auth changes (including email confirmation)
       useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-          setSession(session);
-          setUser(session?.user ?? null);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          // Handle email confirmation
+          if (event === 'SIGNED_IN' && session) {
+            setSession(session);
+            setUser(session.user);
+          } else if (event === 'TOKEN_REFRESHED' && session) {
+            setSession(session);
+            setUser(session.user);
+          } else {
+            setSession(session);
+            setUser(session?.user ?? null);
+          }
         });
 
         return () => subscription.unsubscribe();
