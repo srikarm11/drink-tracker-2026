@@ -216,27 +216,35 @@
             console.log('[DEBUG] Parsed localStorage:', {
               hasCurrentSession: !!parsed?.currentSession,
               hasUser: !!parsed?.currentSession?.user,
-              userEmail: parsed?.currentSession?.user?.email
+              userEmail: parsed?.currentSession?.user?.email,
+              expiresAt: parsed?.currentSession?.expires_at,
+              accessToken: parsed?.currentSession?.access_token ? 'exists' : 'missing'
             });
           } catch (e) {
             console.error('[DEBUG] Error parsing localStorage:', e);
           }
+        } else {
+          console.log('[DEBUG] ⚠️ No localStorage data found!');
         }
         
         try {
           // Simply get the session - Supabase handles persistence automatically
+          console.log('[DEBUG] Calling supabase.auth.getSession()...');
           const { data: { session }, error } = await supabase.auth.getSession();
           
           console.log('[DEBUG] getSession result:', {
             hasError: !!error,
             errorMessage: error?.message,
+            errorCode: error?.code,
             hasSession: !!session,
             hasUser: !!session?.user,
-            userEmail: session?.user?.email
+            userEmail: session?.user?.email,
+            expiresAt: session?.expires_at,
+            accessToken: session?.access_token ? 'exists' : 'missing'
           });
           
           if (error) {
-            console.error('[DEBUG] Error getting session:', error);
+            console.error('[DEBUG] ✗ Error getting session:', error);
             setSession(null);
             setUser(null);
             setAuthLoading(false);
@@ -246,18 +254,22 @@
           // If we have a session, restore it
           if (session && session.user) {
             console.log('[DEBUG] ✓ Session found! Restoring user:', session.user.email);
+            console.log('[DEBUG] Setting session and user state...');
             setSession(session);
             setUser(session.user);
+            console.log('[DEBUG] State set - session:', !!session, 'user:', session.user.email);
             
             // Load cached data immediately if available
             loadCachedDrinks(session.user.id);
           } else {
-            console.log('[DEBUG] ✗ No session found');
+            console.log('[DEBUG] ✗ No session found in getSession() response');
+            console.log('[DEBUG] This means Supabase did not restore the session from localStorage');
             setSession(null);
             setUser(null);
           }
         } catch (error) {
           console.error('[DEBUG] ✗ Exception in checkSession:', error);
+          console.error('[DEBUG] Exception details:', error.message, error.stack);
           setSession(null);
           setUser(null);
         } finally {
@@ -394,23 +406,27 @@
         console.log('[DEBUG] Setting up auth state change listener');
         
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          console.log('[DEBUG] Auth state changed:', {
-            event,
+          console.log('[DEBUG] ===== Auth state changed =====');
+          console.log('[DEBUG] Event:', event);
+          console.log('[DEBUG] Session:', {
             hasSession: !!session,
-            userEmail: session?.user?.email || 'no user'
+            hasUser: !!session?.user,
+            userEmail: session?.user?.email || 'no user',
+            expiresAt: session?.expires_at,
+            accessToken: session?.access_token ? 'exists' : 'missing'
           });
           
           // Handle different auth events
           if (event === 'SIGNED_IN' && session) {
-            console.log('[DEBUG] SIGNED_IN event');
+            console.log('[DEBUG] ✓ SIGNED_IN event - setting user');
             setSession(session);
             setUser(session.user);
           } else if (event === 'TOKEN_REFRESHED' && session) {
-            console.log('[DEBUG] TOKEN_REFRESHED event');
+            console.log('[DEBUG] ✓ TOKEN_REFRESHED event - updating session');
             setSession(session);
             setUser(session.user);
           } else if (event === 'SIGNED_OUT') {
-            console.log('[DEBUG] SIGNED_OUT event');
+            console.log('[DEBUG] ✗ SIGNED_OUT event');
             // Clear all cached data on sign out
             if (user) {
               const userId = user.id;
@@ -421,24 +437,27 @@
             setUser(null);
             setDrinks([]);
             setCacheTimestamp(null);
-          } else if (event === 'INITIAL_SESSION' && session) {
+          } else if (event === 'INITIAL_SESSION') {
             // This fires when Supabase restores a session from storage
-            console.log('[DEBUG] INITIAL_SESSION event - restoring:', session.user?.email);
-            setSession(session);
-            setUser(session.user);
-            setAuthLoading(false); // Session restored, we're done loading
-          } else if (event === 'INITIAL_SESSION' && !session) {
-            // No session found in storage
-            console.log('[DEBUG] INITIAL_SESSION event - no session found');
-            setSession(null);
-            setUser(null);
-            setAuthLoading(false);
+            console.log('[DEBUG] ===== INITIAL_SESSION EVENT =====');
+            if (session && session.user) {
+              console.log('[DEBUG] ✓ INITIAL_SESSION - session found! Restoring:', session.user.email);
+              setSession(session);
+              setUser(session.user);
+              setAuthLoading(false); // Session restored, we're done loading
+            } else {
+              console.log('[DEBUG] ✗ INITIAL_SESSION - no session found');
+              setSession(null);
+              setUser(null);
+              setAuthLoading(false);
+            }
           } else {
             console.log('[DEBUG] Other auth event:', event);
             // For other events, update state if we have a session
             setSession(session);
             setUser(session?.user ?? null);
           }
+          console.log('[DEBUG] ===== Auth state change handler complete =====');
         });
 
         return () => {
