@@ -192,6 +192,10 @@
           }
         } catch (error) {
           console.error('Error loading data:', error);
+          // Show error to user if it's a critical issue
+          if (error.message && error.message.includes('column') || error.message.includes('permission')) {
+            alert(`Database error: ${error.message}\n\nPlease check your Supabase setup. See SUPABASE_SETUP.md for instructions.`);
+          }
         } finally {
           setLoading(false);
         }
@@ -236,7 +240,8 @@
           }
         } catch (error) {
           console.error('Error adding drink:', error);
-          alert('Failed to add drink. Please try again.');
+          const errorMessage = error.message || 'Unknown error occurred';
+          alert(`Failed to add drink: ${errorMessage}\n\nCheck the browser console (F12) for more details.\n\nIf you see "column" or "permission" errors, you may need to set up your Supabase database. See SUPABASE_SETUP.md for instructions.`);
         }
       };
 
@@ -266,7 +271,8 @@
           setShowOtherForm(false);
         } catch (error) {
           console.error('Error adding drink:', error);
-          alert('Failed to add drink. Please try again.');
+          const errorMessage = error.message || 'Unknown error occurred';
+          alert(`Failed to add drink: ${errorMessage}\n\nCheck the browser console (F12) for more details.\n\nIf you see "column" or "permission" errors, you may need to set up your Supabase database. See SUPABASE_SETUP.md for instructions.`);
         }
       };
 
