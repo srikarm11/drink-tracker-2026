@@ -100,9 +100,13 @@
       // Check for existing session on mount
       // Note: We also rely on onAuthStateChange INITIAL_SESSION event
       useEffect(() => {
-        // Call checkSession as backup, but INITIAL_SESSION event should handle it
-        console.log('[DEBUG] Component mounted, calling checkSession');
-        checkSession();
+        // Wait a moment for Supabase to initialize, then check session
+        const timer = setTimeout(() => {
+          console.log('[DEBUG] Component mounted, calling checkSession after delay');
+          checkSession();
+        }, 200);
+        
+        return () => clearTimeout(timer);
       }, []);
 
       // Offline/online detection
@@ -210,6 +214,7 @@
           length: stored ? stored.length : 0
         });
         
+        let parsedSession = null;
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
@@ -220,6 +225,7 @@
               expiresAt: parsed?.currentSession?.expires_at,
               accessToken: parsed?.currentSession?.access_token ? 'exists' : 'missing'
             });
+            parsedSession = parsed?.currentSession;
           } catch (e) {
             console.error('[DEBUG] Error parsing localStorage:', e);
           }
@@ -261,9 +267,35 @@
             
             // Load cached data immediately if available
             loadCachedDrinks(session.user.id);
+          } else if (parsedSession && parsedSession.user) {
+            // Fallback: If getSession() returns null but we have data in localStorage, try to restore manually
+            console.log('[DEBUG] ⚠️ getSession() returned null but localStorage has session data');
+            console.log('[DEBUG] Attempting manual session restoration...');
+            
+            // Check if token is expired
+            const expiresAt = parsedSession.expires_at;
+            if (expiresAt) {
+              const now = Math.floor(Date.now() / 1000);
+              if (expiresAt < now) {
+                console.log('[DEBUG] Token in localStorage is expired, cannot restore');
+                setSession(null);
+                setUser(null);
+                setAuthLoading(false);
+                return;
+              }
+            }
+            
+            // Try to set the session manually
+            console.log('[DEBUG] Setting session from localStorage data');
+            setSession(parsedSession);
+            setUser(parsedSession.user);
+            console.log('[DEBUG] Manual restoration complete - user:', parsedSession.user.email);
+            
+            // Load cached data
+            loadCachedDrinks(parsedSession.user.id);
           } else {
             console.log('[DEBUG] ✗ No session found in getSession() response');
-            console.log('[DEBUG] This means Supabase did not restore the session from localStorage');
+            console.log('[DEBUG] ✗ No valid session in localStorage either');
             setSession(null);
             setUser(null);
           }
