@@ -16,8 +16,14 @@
   <script>
     // This runs BEFORE Babel - test if JavaScript is working
     console.log('=== PRE-BABEL TEST: JavaScript is working ===');
+    alert('JavaScript is working! Check console for debug messages.');
     window.addEventListener('error', function(e) {
       console.error('=== JAVASCRIPT ERROR ===', e.error, e.message, e.filename, e.lineno);
+      alert('JavaScript Error: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('=== UNHANDLED PROMISE REJECTION ===', e.reason);
+      alert('Unhandled Promise Rejection: ' + e.reason);
     });
   </script>
 
@@ -303,23 +309,51 @@
         setAuthError('');
         
         try {
+          console.log('[DEBUG] Attempting to sign in...');
           const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
           });
 
-          if (error) throw error;
+          if (error) {
+            console.error('[DEBUG] Sign in error:', error);
+            throw error;
+          }
 
-          if (data.user) {
+          console.log('[DEBUG] Sign in successful:', {
+            hasUser: !!data.user,
+            hasSession: !!data.session,
+            userEmail: data.user?.email
+          });
+
+          if (data.user && data.session) {
+            // Verify session is being saved
+            const { data: { session: verifySession } } = await supabase.auth.getSession();
+            console.log('[DEBUG] Session verification after sign in:', {
+              hasSession: !!verifySession,
+              userEmail: verifySession?.user?.email
+            });
+            
+            // Check localStorage
+            const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
+            const stored = localStorage.getItem(supabaseKey);
+            console.log('[DEBUG] localStorage after sign in:', {
+              key: supabaseKey,
+              exists: !!stored
+            });
+            
             setUser(data.user);
             setSession(data.session);
             setShowLogin(false);
             setEmail('');
             setPassword('');
+          } else {
+            console.error('[DEBUG] Sign in succeeded but no session!');
+            setAuthError('Sign in succeeded but session was not created. Please try again.');
           }
         } catch (error) {
           setAuthError(error.message);
-          console.error('Error signing in:', error);
+          console.error('[DEBUG] Error signing in:', error);
         }
       };
 
@@ -1409,7 +1443,14 @@
       );
     }
 
-    ReactDOM.render(<DrinkTracker />, document.getElementById('root'));
+    console.log('[DEBUG] About to render DrinkTracker component');
+    try {
+      ReactDOM.render(<DrinkTracker />, document.getElementById('root'));
+      console.log('[DEBUG] DrinkTracker component rendered successfully');
+    } catch (error) {
+      console.error('[DEBUG] Error rendering component:', error);
+      alert('Error rendering app: ' + error.message);
+    }
   </script>
 </body>
 </html>
