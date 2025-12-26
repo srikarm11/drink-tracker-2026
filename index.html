@@ -19,7 +19,13 @@
     // Supabase configuration
     const SUPABASE_URL = 'https://jftfalkxfsasptpoqztd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmdGZhbGt4ZnNhc3B0cG9xenRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3Njk0OTMsImV4cCI6MjA4MjM0NTQ5M30.zOMezm88s6GMvxVuyT1M0MK_kJKYOsIVg7m614jl_XI';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
 
     function DrinkTracker() {
       const [user, setUser] = useState(null);
@@ -66,6 +72,10 @@
         try {
           const { data: { session }, error } = await supabase.auth.getSession();
           if (error) throw error;
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/c3c4b613-5dd5-41e9-a457-330927a94d06',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:65',message:'checkSession result',data:{hasSession:!!session,sessionUserId:session?.user?.id,sessionUserEmail:session?.user?.email,userIdType:typeof session?.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           
           setSession(session);
           setUser(session?.user ?? null);
@@ -220,7 +230,23 @@
       const quickAddDrink = async (name, category) => {
         if (!user) return;
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c3c4b613-5dd5-41e9-a457-330927a94d06',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:220',message:'quickAddDrink entry',data:{userId:user?.id,userEmail:user?.email,hasUser:!!user,userType:typeof user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
         try {
+          // #region agent log - Debug RLS issue
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          console.log('[DEBUG] Session check:', {
+            sessionExists: !!currentSession,
+            sessionUserId: currentSession?.user?.id,
+            sessionUserEmail: currentSession?.user?.email,
+            userDotId: user.id,
+            idsMatch: currentSession?.user?.id === user.id,
+            sessionAccessToken: currentSession?.access_token ? 'exists' : 'missing'
+          });
+          // #endregion
+          
           const newDrink = {
             name: name,
             category: category,
@@ -228,10 +254,46 @@
             user_id: user.id
           };
 
+          // #region agent log - Debug insert payload
+          console.log('[DEBUG] Insert payload:', {
+            newDrink,
+            userIdType: typeof user.id,
+            userIdValue: user.id,
+            userIdLength: user.id?.length
+          });
+          // #endregion
+
           const { data, error } = await supabase
             .from('drinks')
             .insert([newDrink])
             .select();
+
+          // #region agent log - Debug insert response
+          console.log('[DEBUG] Insert response:', {
+            hasError: !!error,
+            errorCode: error?.code,
+            errorMessage: error?.message,
+            errorDetails: error?.details,
+            errorHint: error?.hint,
+            hasData: !!data,
+            dataLength: data?.length
+          });
+          
+          // Critical check: Verify session is being used
+          if (error && error.code === '42501') {
+            const { data: { user: currentAuthUser }, error: authError } = await supabase.auth.getUser();
+            console.error('[DEBUG] RLS Policy Violation Details:', {
+              errorCode: error.code,
+              errorMessage: error.message,
+              currentAuthUserId: currentAuthUser?.id,
+              insertedUserId: user.id,
+              idsMatch: currentAuthUser?.id === user.id,
+              sessionUserId: currentSession?.user?.id,
+              authError: authError?.message,
+              sessionAccessTokenExists: !!currentSession?.access_token
+            });
+          }
+          // #endregion
 
           if (error) throw error;
 
@@ -248,6 +310,10 @@
       const addCustomDrink = async (category) => {
         if (!customDrink.trim() || !user) return;
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c3c4b613-5dd5-41e9-a457-330927a94d06',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:247',message:'addCustomDrink entry',data:{userId:user?.id,hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
         try {
           const newDrink = {
             name: customDrink.trim(),
@@ -256,10 +322,18 @@
             user_id: user.id
           };
 
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/c3c4b613-5dd5-41e9-a457-330927a94d06',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:255',message:'custom drink insert payload',data:{newDrink,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+
           const { data, error } = await supabase
             .from('drinks')
             .insert([newDrink])
             .select();
+
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/c3c4b613-5dd5-41e9-a457-330927a94d06',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:262',message:'custom drink insert response',data:{hasError:!!error,errorCode:error?.code,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
 
           if (error) throw error;
 
