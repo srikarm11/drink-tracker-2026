@@ -13,18 +13,43 @@
 <body>
   <div id="root"></div>
 
+  <script>
+    // This runs BEFORE Babel - test if JavaScript is working
+    console.log('=== PRE-BABEL TEST: JavaScript is working ===');
+    window.addEventListener('error', function(e) {
+      console.error('=== JAVASCRIPT ERROR ===', e.error, e.message, e.filename, e.lineno);
+    });
+  </script>
+
   <script type="text/babel">
+    console.log('[DEBUG] Script starting...');
+    
     const { useState, useEffect } = React;
 
     // Supabase configuration
     const SUPABASE_URL = 'https://jftfalkxfsasptpoqztd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmdGZhbGt4ZnNhc3B0cG9xenRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3Njk0OTMsImV4cCI6MjA4MjM0NTQ5M30.zOMezm88s6GMvxVuyT1M0MK_kJKYOsIVg7m614jl_XI';
+    
+    console.log('[DEBUG] Creating Supabase client...');
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        storage: window.localStorage, // Explicitly use localStorage
+        storageKey: 'sb-jftfalkxfsasptpoqztd-auth-token' // Explicit storage key
       }
+    });
+    console.log('[DEBUG] Supabase client created with explicit localStorage');
+    
+    // Immediately check what's in localStorage
+    console.log('[DEBUG] Checking localStorage immediately after client creation...');
+    const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
+    const immediateCheck = localStorage.getItem(supabaseKey);
+    console.log('[DEBUG] Immediate localStorage check:', {
+      key: supabaseKey,
+      exists: !!immediateCheck,
+      value: immediateCheck ? 'present' : 'missing'
     });
 
     function DrinkTracker() {
@@ -67,7 +92,10 @@
       const CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
 
       // Check for existing session on mount
+      // Note: We also rely on onAuthStateChange INITIAL_SESSION event
       useEffect(() => {
+        // Call checkSession as backup, but INITIAL_SESSION event should handle it
+        console.log('[DEBUG] Component mounted, calling checkSession');
         checkSession();
       }, []);
 
@@ -100,67 +128,135 @@
       }, [user]);
 
       const validateSession = async (session) => {
-        if (!session) return false;
+        // #region agent log
+        console.log('[DEBUG] validateSession called:', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at,
+          accessToken: session?.access_token ? 'exists' : 'missing'
+        });
+        // #endregion
+        
+        if (!session) {
+          // #region agent log
+          console.log('[DEBUG] validateSession: No session provided');
+          // #endregion
+          return false;
+        }
         
         try {
           // Check if token is expired
           const expiresAt = session.expires_at;
           if (expiresAt) {
             const now = Math.floor(Date.now() / 1000);
+            const timeUntilExpiry = expiresAt - now;
+            
+            // #region agent log
+            console.log('[DEBUG] Token expiry check:', {
+              expiresAt,
+              now,
+              timeUntilExpiry,
+              isExpired: expiresAt < now,
+              minutesUntilExpiry: Math.floor(timeUntilExpiry / 60)
+            });
+            // #endregion
+            
             if (expiresAt < now) {
               // Token expired, try to refresh
+              // #region agent log
+              console.log('[DEBUG] Token expired, attempting refresh');
+              // #endregion
               const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
               if (error || !refreshedSession) {
+                // #region agent log
+                console.error('[DEBUG] Refresh failed:', { error: error?.message, hasRefreshedSession: !!refreshedSession });
+                // #endregion
                 return false;
               }
+              // #region agent log
+              console.log('[DEBUG] Token refreshed successfully');
+              // #endregion
               return refreshedSession;
             }
           }
+          // #region agent log
+          console.log('[DEBUG] Session is valid');
+          // #endregion
           return session;
         } catch (error) {
-          console.error('Error validating session:', error);
+          // #region agent log
+          console.error('[DEBUG] Error validating session:', error);
+          // #endregion
           return false;
         }
       };
 
       const checkSession = async () => {
+        console.log('[DEBUG] ===== checkSession START =====');
+        
+        // First, check what's in localStorage
+        const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
+        const stored = localStorage.getItem(supabaseKey);
+        console.log('[DEBUG] localStorage check:', {
+          key: supabaseKey,
+          exists: !!stored,
+          length: stored ? stored.length : 0
+        });
+        
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            console.log('[DEBUG] Parsed localStorage:', {
+              hasCurrentSession: !!parsed?.currentSession,
+              hasUser: !!parsed?.currentSession?.user,
+              userEmail: parsed?.currentSession?.user?.email
+            });
+          } catch (e) {
+            console.error('[DEBUG] Error parsing localStorage:', e);
+          }
+        }
+        
         try {
+          // Simply get the session - Supabase handles persistence automatically
           const { data: { session }, error } = await supabase.auth.getSession();
-          if (error) throw error;
           
-          // Validate and potentially refresh session
-          const validSession = await validateSession(session);
+          console.log('[DEBUG] getSession result:', {
+            hasError: !!error,
+            errorMessage: error?.message,
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            userEmail: session?.user?.email
+          });
           
-          if (validSession) {
-            setSession(validSession);
-            setUser(validSession.user);
+          if (error) {
+            console.error('[DEBUG] Error getting session:', error);
+            setSession(null);
+            setUser(null);
+            setAuthLoading(false);
+            return;
+          }
+          
+          // If we have a session, restore it
+          if (session && session.user) {
+            console.log('[DEBUG] ✓ Session found! Restoring user:', session.user.email);
+            setSession(session);
+            setUser(session.user);
             
             // Load cached data immediately if available
-            if (validSession.user) {
-              loadCachedDrinks(validSession.user.id);
-            }
+            loadCachedDrinks(session.user.id);
           } else {
-            // Clear potentially corrupted session
-            await supabase.auth.signOut();
+            console.log('[DEBUG] ✗ No session found');
             setSession(null);
             setUser(null);
           }
         } catch (error) {
-          console.error('Error checking session:', error);
-          // Try to load cached data even if session check fails
-          try {
-            const cachedSession = localStorage.getItem('sb-jftfalkxfsasptpoqztd-auth-token');
-            if (cachedSession) {
-              const parsed = JSON.parse(cachedSession);
-              if (parsed?.currentSession?.user) {
-                loadCachedDrinks(parsed.currentSession.user.id);
-              }
-            }
-          } catch (e) {
-            console.error('Error loading cached session:', e);
-          }
+          console.error('[DEBUG] ✗ Exception in checkSession:', error);
+          setSession(null);
+          setUser(null);
         } finally {
           setAuthLoading(false);
+          console.log('[DEBUG] ===== checkSession END =====');
         }
       };
 
@@ -261,21 +357,26 @@
 
       // Listen for auth changes (including email confirmation)
       useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          // Handle email confirmation
+        console.log('[DEBUG] Setting up auth state change listener');
+        
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          console.log('[DEBUG] Auth state changed:', {
+            event,
+            hasSession: !!session,
+            userEmail: session?.user?.email || 'no user'
+          });
+          
+          // Handle different auth events
           if (event === 'SIGNED_IN' && session) {
-            const validSession = await validateSession(session);
-            if (validSession) {
-              setSession(validSession);
-              setUser(validSession.user);
-            }
+            console.log('[DEBUG] SIGNED_IN event');
+            setSession(session);
+            setUser(session.user);
           } else if (event === 'TOKEN_REFRESHED' && session) {
-            const validSession = await validateSession(session);
-            if (validSession) {
-              setSession(validSession);
-              setUser(validSession.user);
-            }
+            console.log('[DEBUG] TOKEN_REFRESHED event');
+            setSession(session);
+            setUser(session.user);
           } else if (event === 'SIGNED_OUT') {
+            console.log('[DEBUG] SIGNED_OUT event');
             // Clear all cached data on sign out
             if (user) {
               const userId = user.id;
@@ -286,20 +387,31 @@
             setUser(null);
             setDrinks([]);
             setCacheTimestamp(null);
+          } else if (event === 'INITIAL_SESSION' && session) {
+            // This fires when Supabase restores a session from storage
+            console.log('[DEBUG] INITIAL_SESSION event - restoring:', session.user?.email);
+            setSession(session);
+            setUser(session.user);
+            setAuthLoading(false); // Session restored, we're done loading
+          } else if (event === 'INITIAL_SESSION' && !session) {
+            // No session found in storage
+            console.log('[DEBUG] INITIAL_SESSION event - no session found');
+            setSession(null);
+            setUser(null);
+            setAuthLoading(false);
           } else {
-            const validSession = await validateSession(session);
-            if (validSession) {
-              setSession(validSession);
-              setUser(validSession.user);
-            } else {
-              setSession(null);
-              setUser(null);
-            }
+            console.log('[DEBUG] Other auth event:', event);
+            // For other events, update state if we have a session
+            setSession(session);
+            setUser(session?.user ?? null);
           }
         });
 
-        return () => subscription.unsubscribe();
-      }, [user]);
+        return () => {
+          console.log('[DEBUG] Cleaning up auth state change listener');
+          subscription.unsubscribe();
+        };
+      }, []);
 
       const cacheDrinksData = (drinksData, userId) => {
         if (!userId) return;
