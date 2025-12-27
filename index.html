@@ -62,6 +62,23 @@
       const [user, setUser] = useState(null);
       const [session, setSession] = useState(null);
       const [authLoading, setAuthLoading] = useState(true);
+      
+      // Track state changes for debugging
+      useEffect(() => {
+        console.log('[DEBUG] User state changed:', {
+          hasUser: !!user,
+          userEmail: user?.email,
+          userId: user?.id
+        });
+      }, [user]);
+      
+      useEffect(() => {
+        console.log('[DEBUG] Session state changed:', {
+          hasSession: !!session,
+          userEmail: session?.user?.email,
+          expiresAt: session?.expires_at
+        });
+      }, [session]);
       const [drinks, setDrinks] = useState([]);
       const [loading, setLoading] = useState(true);
       const [showOtherForm, setShowOtherForm] = useState(false);
@@ -271,6 +288,12 @@
           } else if (parsedSession && parsedSession.user) {
             // Fallback: If getSession() returns null but we have data in localStorage, try to restore manually
             console.log('[DEBUG] ⚠️ getSession() returned null but localStorage has session data');
+            console.log('[DEBUG] Current user state before restoration:', {
+              hasUser: !!user,
+              userEmail: user?.email
+            });
+            // Fallback: If getSession() returns null but we have data in localStorage, try to restore manually
+            console.log('[DEBUG] ⚠️ getSession() returned null but localStorage has session data');
             console.log('[DEBUG] Attempting manual session restoration...');
             console.log('[DEBUG] Parsed session data:', {
               hasUser: !!parsedSession.user,
@@ -339,8 +362,14 @@
           } else {
             console.log('[DEBUG] ✗ No session found in getSession() response');
             console.log('[DEBUG] ✗ No valid session in localStorage either');
-            setSession(null);
-            setUser(null);
+            // Don't clear state if user already exists (might have been set by INITIAL_SESSION handler)
+            if (!user) {
+              console.log('[DEBUG] No existing user, clearing state');
+              setSession(null);
+              setUser(null);
+            } else {
+              console.log('[DEBUG] User already exists, keeping state (might have been restored by INITIAL_SESSION)');
+            }
           }
         } catch (error) {
           console.error('[DEBUG] ✗ Exception in checkSession:', error);
@@ -586,10 +615,28 @@
                   }
                   
                   console.log('[DEBUG] ✓ Restoring session from localStorage');
+                  console.log('[DEBUG] About to set session:', {
+                    hasStoredSession: !!storedSession,
+                    userEmail: storedSession.user?.email
+                  });
+                  
+                  // Set state
                   setSession(storedSession);
                   setUser(storedSession.user);
+                  
+                  // Verify state was set
+                  setTimeout(() => {
+                    console.log('[DEBUG] State verification after setting:', {
+                      sessionSet: !!session,
+                      userSet: !!user,
+                      userEmail: user?.email
+                    });
+                  }, 50);
+                  
                   setAuthLoading(false);
                   loadCachedDrinks(storedSession.user.id);
+                  
+                  console.log('[DEBUG] ✓ Session restoration complete');
                 } else {
                   console.log('[DEBUG] ✗ No valid session in localStorage');
                   setSession(null);
@@ -1088,6 +1135,7 @@
 
       // Show loading while checking auth
       if (authLoading) {
+        console.log('[DEBUG] Rendering: authLoading is true, showing loading screen');
         return (
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
             <div className="text-2xl">Loading...</div>
@@ -1096,7 +1144,14 @@
       }
 
       // Show auth UI if not logged in
+      console.log('[DEBUG] Rendering: authLoading is false, checking user:', {
+        hasUser: !!user,
+        userEmail: user?.email,
+        hasSession: !!session
+      });
+      
       if (!user) {
+        console.log('[DEBUG] Rendering: No user, showing auth UI');
         return (
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center p-6">
             <div className="max-w-md w-full">
