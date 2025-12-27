@@ -13,72 +13,27 @@
 <body>
   <div id="root"></div>
 
-  <script>
-    // This runs BEFORE Babel - test if JavaScript is working
-    console.log('=== PRE-BABEL TEST: JavaScript is working ===');
-    alert('JavaScript is working! Check console for debug messages.');
-    window.addEventListener('error', function(e) {
-      console.error('=== JAVASCRIPT ERROR ===', e.error, e.message, e.filename, e.lineno);
-      alert('JavaScript Error: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
-    });
-    window.addEventListener('unhandledrejection', function(e) {
-      console.error('=== UNHANDLED PROMISE REJECTION ===', e.reason);
-      alert('Unhandled Promise Rejection: ' + e.reason);
-    });
-  </script>
-
   <script type="text/babel">
-    console.log('[DEBUG] Script starting...');
-    
     const { useState, useEffect } = React;
 
     // Supabase configuration
     const SUPABASE_URL = 'https://jftfalkxfsasptpoqztd.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmdGZhbGt4ZnNhc3B0cG9xenRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3Njk0OTMsImV4cCI6MjA4MjM0NTQ5M30.zOMezm88s6GMvxVuyT1M0MK_kJKYOsIVg7m614jl_XI';
     
-    console.log('[DEBUG] Creating Supabase client...');
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        storage: window.localStorage, // Explicitly use localStorage
-        storageKey: 'sb-jftfalkxfsasptpoqztd-auth-token' // Explicit storage key
+        storage: window.localStorage,
+        storageKey: 'sb-jftfalkxfsasptpoqztd-auth-token'
       }
-    });
-    console.log('[DEBUG] Supabase client created with explicit localStorage');
-    
-    // Immediately check what's in localStorage
-    console.log('[DEBUG] Checking localStorage immediately after client creation...');
-    const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
-    const immediateCheck = localStorage.getItem(supabaseKey);
-    console.log('[DEBUG] Immediate localStorage check:', {
-      key: supabaseKey,
-      exists: !!immediateCheck,
-      value: immediateCheck ? 'present' : 'missing'
     });
 
     function DrinkTracker() {
       const [user, setUser] = useState(null);
       const [session, setSession] = useState(null);
       const [authLoading, setAuthLoading] = useState(true);
-      
-      // Track state changes for debugging
-      useEffect(() => {
-        console.log('[DEBUG] User state changed:', {
-          hasUser: !!user,
-          userEmail: user?.email,
-          userId: user?.id
-        });
-      }, [user]);
-      
-      useEffect(() => {
-        console.log('[DEBUG] Session state changed:', {
-          hasSession: !!session,
-          userEmail: session?.user?.email,
-          expiresAt: session?.expires_at
-        });
-      }, [session]);
       const [drinks, setDrinks] = useState([]);
       const [loading, setLoading] = useState(true);
       const [showOtherForm, setShowOtherForm] = useState(false);
@@ -118,11 +73,9 @@
       // Note: We rely on onAuthStateChange INITIAL_SESSION event, but also call checkSession as backup
       useEffect(() => {
         // Wait a moment for Supabase to initialize, then check session
-        // The INITIAL_SESSION event should fire first, but we'll also check manually
         const timer = setTimeout(() => {
-          console.log('[DEBUG] Component mounted, calling checkSession after delay');
           checkSession();
-        }, 500); // Increased delay to give INITIAL_SESSION time to fire
+        }, 500);
         
         return () => clearTimeout(timer);
       }, []);
@@ -155,120 +108,14 @@
         }
       }, [user]);
 
-      const validateSession = async (session) => {
-        // #region agent log
-        console.log('[DEBUG] validateSession called:', {
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          userId: session?.user?.id,
-          expiresAt: session?.expires_at,
-          accessToken: session?.access_token ? 'exists' : 'missing'
-        });
-        // #endregion
-        
-        if (!session) {
-          // #region agent log
-          console.log('[DEBUG] validateSession: No session provided');
-          // #endregion
-          return false;
-        }
-        
-        try {
-          // Check if token is expired
-          const expiresAt = session.expires_at;
-          if (expiresAt) {
-            const now = Math.floor(Date.now() / 1000);
-            const timeUntilExpiry = expiresAt - now;
-            
-            // #region agent log
-            console.log('[DEBUG] Token expiry check:', {
-              expiresAt,
-              now,
-              timeUntilExpiry,
-              isExpired: expiresAt < now,
-              minutesUntilExpiry: Math.floor(timeUntilExpiry / 60)
-            });
-            // #endregion
-            
-            if (expiresAt < now) {
-              // Token expired, try to refresh
-              // #region agent log
-              console.log('[DEBUG] Token expired, attempting refresh');
-              // #endregion
-              const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
-              if (error || !refreshedSession) {
-                // #region agent log
-                console.error('[DEBUG] Refresh failed:', { error: error?.message, hasRefreshedSession: !!refreshedSession });
-                // #endregion
-                return false;
-              }
-              // #region agent log
-              console.log('[DEBUG] Token refreshed successfully');
-              // #endregion
-              return refreshedSession;
-            }
-          }
-          // #region agent log
-          console.log('[DEBUG] Session is valid');
-          // #endregion
-          return session;
-        } catch (error) {
-          // #region agent log
-          console.error('[DEBUG] Error validating session:', error);
-          // #endregion
-          return false;
-        }
-      };
 
       const checkSession = async () => {
-        console.log('[DEBUG] ===== checkSession START =====');
-        
-        // First, check what's in localStorage
-        const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
-        const stored = localStorage.getItem(supabaseKey);
-        console.log('[DEBUG] localStorage check:', {
-          key: supabaseKey,
-          exists: !!stored,
-          length: stored ? stored.length : 0
-        });
-        
-        let parsedSession = null;
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            console.log('[DEBUG] Parsed localStorage:', {
-              hasCurrentSession: !!parsed?.currentSession,
-              hasUser: !!parsed?.currentSession?.user,
-              userEmail: parsed?.currentSession?.user?.email,
-              expiresAt: parsed?.currentSession?.expires_at,
-              accessToken: parsed?.currentSession?.access_token ? 'exists' : 'missing'
-            });
-            parsedSession = parsed?.currentSession;
-          } catch (e) {
-            console.error('[DEBUG] Error parsing localStorage:', e);
-          }
-        } else {
-          console.log('[DEBUG] ⚠️ No localStorage data found!');
-        }
-        
         try {
-          // Simply get the session - Supabase handles persistence automatically
-          console.log('[DEBUG] Calling supabase.auth.getSession()...');
+          // Get the session - Supabase handles persistence automatically
           const { data: { session }, error } = await supabase.auth.getSession();
           
-          console.log('[DEBUG] getSession result:', {
-            hasError: !!error,
-            errorMessage: error?.message,
-            errorCode: error?.code,
-            hasSession: !!session,
-            hasUser: !!session?.user,
-            userEmail: session?.user?.email,
-            expiresAt: session?.expires_at,
-            accessToken: session?.access_token ? 'exists' : 'missing'
-          });
-          
           if (error) {
-            console.error('[DEBUG] ✗ Error getting session:', error);
+            console.error('Error getting session:', error);
             setSession(null);
             setUser(null);
             setAuthLoading(false);
@@ -277,108 +124,24 @@
           
           // If we have a session, restore it
           if (session && session.user) {
-            console.log('[DEBUG] ✓ Session found! Restoring user:', session.user.email);
-            console.log('[DEBUG] Setting session and user state...');
             setSession(session);
             setUser(session.user);
-            console.log('[DEBUG] State set - session:', !!session, 'user:', session.user.email);
-            
-            // Load cached data immediately if available
             loadCachedDrinks(session.user.id);
-          } else if (parsedSession && parsedSession.user) {
-            // Fallback: If getSession() returns null but we have data in localStorage, try to restore manually
-            console.log('[DEBUG] ⚠️ getSession() returned null but localStorage has session data');
-            console.log('[DEBUG] Current user state before restoration:', {
-              hasUser: !!user,
-              userEmail: user?.email
-            });
-            // Fallback: If getSession() returns null but we have data in localStorage, try to restore manually
-            console.log('[DEBUG] ⚠️ getSession() returned null but localStorage has session data');
-            console.log('[DEBUG] Attempting manual session restoration...');
-            console.log('[DEBUG] Parsed session data:', {
-              hasUser: !!parsedSession.user,
-              userEmail: parsedSession.user.email,
-              userId: parsedSession.user.id,
-              expiresAt: parsedSession.expires_at,
-              hasAccessToken: !!parsedSession.access_token
-            });
-            
-            // Check if token is expired
-            const expiresAt = parsedSession.expires_at;
-            if (expiresAt) {
-              const now = Math.floor(Date.now() / 1000);
-              const timeUntilExpiry = expiresAt - now;
-              console.log('[DEBUG] Token expiry check:', {
-                expiresAt,
-                now,
-                timeUntilExpiry,
-                isExpired: expiresAt < now,
-                minutesUntilExpiry: Math.floor(timeUntilExpiry / 60)
-              });
-              
-              if (expiresAt < now) {
-                console.log('[DEBUG] ✗ Token in localStorage is expired, cannot restore');
-                // Try to refresh the session
-                console.log('[DEBUG] Attempting to refresh expired session...');
-                try {
-                  const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-                  if (refreshError || !refreshedSession) {
-                    console.error('[DEBUG] ✗ Refresh failed:', refreshError?.message);
-                    setSession(null);
-                    setUser(null);
-                    setAuthLoading(false);
-                    return;
-                  }
-                  console.log('[DEBUG] ✓ Session refreshed successfully');
-                  setSession(refreshedSession);
-                  setUser(refreshedSession.user);
-                  loadCachedDrinks(refreshedSession.user.id);
-                  setAuthLoading(false);
-                  return;
-                } catch (refreshErr) {
-                  console.error('[DEBUG] ✗ Exception during refresh:', refreshErr);
-                  setSession(null);
-                  setUser(null);
-                  setAuthLoading(false);
-                  return;
-                }
-              }
-            }
-            
-            // Try to set the session manually
-            console.log('[DEBUG] ✓ Token is valid, setting session from localStorage data');
-            setSession(parsedSession);
-            setUser(parsedSession.user);
-            console.log('[DEBUG] ✓ Manual restoration complete - user:', parsedSession.user.email);
-            console.log('[DEBUG] State should now be set - verifying...');
-            
-            // Verify state was set (check in next render)
-            setTimeout(() => {
-              console.log('[DEBUG] State verification - session:', !!session, 'user:', user?.email);
-            }, 100);
-            
-            // Load cached data
-            loadCachedDrinks(parsedSession.user.id);
           } else {
-            console.log('[DEBUG] ✗ No session found in getSession() response');
-            console.log('[DEBUG] ✗ No valid session in localStorage either');
             // Don't clear state if user already exists (might have been set by INITIAL_SESSION handler)
             if (!user) {
-              console.log('[DEBUG] No existing user, clearing state');
               setSession(null);
               setUser(null);
-            } else {
-              console.log('[DEBUG] User already exists, keeping state (might have been restored by INITIAL_SESSION)');
             }
           }
         } catch (error) {
-          console.error('[DEBUG] ✗ Exception in checkSession:', error);
-          console.error('[DEBUG] Exception details:', error.message, error.stack);
-          setSession(null);
-          setUser(null);
+          console.error('Error checking session:', error);
+          if (!user) {
+            setSession(null);
+            setUser(null);
+          }
         } finally {
           setAuthLoading(false);
-          console.log('[DEBUG] ===== checkSession END =====');
         }
       };
 
@@ -425,51 +188,25 @@
         setAuthError('');
         
         try {
-          console.log('[DEBUG] Attempting to sign in...');
           const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
           });
 
-          if (error) {
-            console.error('[DEBUG] Sign in error:', error);
-            throw error;
-          }
-
-          console.log('[DEBUG] Sign in successful:', {
-            hasUser: !!data.user,
-            hasSession: !!data.session,
-            userEmail: data.user?.email
-          });
+          if (error) throw error;
 
           if (data.user && data.session) {
-            // Verify session is being saved
-            const { data: { session: verifySession } } = await supabase.auth.getSession();
-            console.log('[DEBUG] Session verification after sign in:', {
-              hasSession: !!verifySession,
-              userEmail: verifySession?.user?.email
-            });
-            
-            // Check localStorage
-            const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
-            const stored = localStorage.getItem(supabaseKey);
-            console.log('[DEBUG] localStorage after sign in:', {
-              key: supabaseKey,
-              exists: !!stored
-            });
-            
             setUser(data.user);
             setSession(data.session);
             setShowLogin(false);
             setEmail('');
             setPassword('');
           } else {
-            console.error('[DEBUG] Sign in succeeded but no session!');
             setAuthError('Sign in succeeded but session was not created. Please try again.');
           }
         } catch (error) {
           setAuthError(error.message);
-          console.error('[DEBUG] Error signing in:', error);
+          console.error('Error signing in:', error);
         }
       };
 
@@ -506,32 +243,16 @@
       };
 
       // Listen for auth changes (including email confirmation)
-      // This MUST be set up before checkSession runs
       useEffect(() => {
-        console.log('[DEBUG] Setting up auth state change listener (should run FIRST)');
-        
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          console.log('[DEBUG] ===== Auth state changed =====');
-          console.log('[DEBUG] Event:', event);
-          console.log('[DEBUG] Session:', {
-            hasSession: !!session,
-            hasUser: !!session?.user,
-            userEmail: session?.user?.email || 'no user',
-            expiresAt: session?.expires_at,
-            accessToken: session?.access_token ? 'exists' : 'missing'
-          });
-          
           // Handle different auth events
           if (event === 'SIGNED_IN' && session) {
-            console.log('[DEBUG] ✓ SIGNED_IN event - setting user');
             setSession(session);
             setUser(session.user);
           } else if (event === 'TOKEN_REFRESHED' && session) {
-            console.log('[DEBUG] ✓ TOKEN_REFRESHED event - updating session');
             setSession(session);
             setUser(session.user);
           } else if (event === 'SIGNED_OUT') {
-            console.log('[DEBUG] ✗ SIGNED_OUT event');
             // Clear all cached data on sign out
             if (user) {
               const userId = user.id;
@@ -544,132 +265,76 @@
             setCacheTimestamp(null);
           } else if (event === 'INITIAL_SESSION') {
             // This fires when Supabase restores a session from storage
-            // This is the PRIMARY way sessions are restored
-            console.log('[DEBUG] ===== INITIAL_SESSION EVENT (PRIMARY RESTORE) =====');
-            console.log('[DEBUG] INITIAL_SESSION session details:', {
-              hasSession: !!session,
-              sessionType: typeof session,
-              sessionValue: session,
-              hasUser: !!session?.user,
-              userEmail: session?.user?.email,
-              expiresAt: session?.expires_at,
-              accessToken: session?.access_token ? 'exists' : 'missing'
-            });
-            
-            // Check localStorage directly as fallback
-            const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
-            const stored = localStorage.getItem(supabaseKey);
-            console.log('[DEBUG] INITIAL_SESSION - localStorage check:', {
-              key: supabaseKey,
-              exists: !!stored
-            });
-            
             if (session && session.user) {
-              console.log('[DEBUG] ✓✓✓ INITIAL_SESSION - session found! Restoring:', session.user.email);
               setSession(session);
               setUser(session.user);
-              setAuthLoading(false); // Session restored, we're done loading
-              
-              // Load cached data
+              setAuthLoading(false);
               loadCachedDrinks(session.user.id);
-            } else if (stored) {
+            } else {
               // INITIAL_SESSION fired but session is null - try to restore from localStorage
-              console.log('[DEBUG] ⚠️ INITIAL_SESSION fired but session is null');
-              console.log('[DEBUG] Attempting to restore from localStorage...');
+              const supabaseKey = 'sb-jftfalkxfsasptpoqztd-auth-token';
+              const stored = localStorage.getItem(supabaseKey);
               
-              try {
-                const parsed = JSON.parse(stored);
-                const storedSession = parsed?.currentSession;
-                
-                console.log('[DEBUG] Parsed localStorage session:', {
-                  hasCurrentSession: !!storedSession,
-                  hasUser: !!storedSession?.user,
-                  userEmail: storedSession?.user?.email
-                });
-                
-                if (storedSession && storedSession.user) {
-                  // Check if expired
-                  const expiresAt = storedSession.expires_at;
-                  if (expiresAt) {
-                    const now = Math.floor(Date.now() / 1000);
-                    if (expiresAt < now) {
-                      console.log('[DEBUG] ✗ Stored session is expired');
-                      // Try to refresh
-                      console.log('[DEBUG] Attempting to refresh expired session...');
-                      supabase.auth.refreshSession().then(({ data: { session: refreshed }, error }) => {
-                        if (error || !refreshed) {
-                          console.error('[DEBUG] ✗ Refresh failed:', error?.message);
-                          setSession(null);
-                          setUser(null);
-                          setAuthLoading(false);
-                        } else {
-                          console.log('[DEBUG] ✓ Session refreshed');
-                          setSession(refreshed);
-                          setUser(refreshed.user);
-                          setAuthLoading(false);
-                          loadCachedDrinks(refreshed.user.id);
-                        }
-                      });
-                      return; // Don't continue, wait for refresh
+              if (stored) {
+                try {
+                  const parsed = JSON.parse(stored);
+                  const storedSession = parsed?.currentSession;
+                  
+                  if (storedSession && storedSession.user) {
+                    // Check if expired
+                    const expiresAt = storedSession.expires_at;
+                    if (expiresAt) {
+                      const now = Math.floor(Date.now() / 1000);
+                      if (expiresAt < now) {
+                        // Try to refresh expired session
+                        supabase.auth.refreshSession().then(({ data: { session: refreshed }, error }) => {
+                          if (error || !refreshed) {
+                            setSession(null);
+                            setUser(null);
+                            setAuthLoading(false);
+                          } else {
+                            setSession(refreshed);
+                            setUser(refreshed.user);
+                            setAuthLoading(false);
+                            loadCachedDrinks(refreshed.user.id);
+                          }
+                        });
+                        return;
+                      }
                     }
+                    
+                    // Restore session from localStorage
+                    setSession(storedSession);
+                    setUser(storedSession.user);
+                    setAuthLoading(false);
+                    loadCachedDrinks(storedSession.user.id);
+                  } else {
+                    setSession(null);
+                    setUser(null);
+                    setAuthLoading(false);
                   }
-                  
-                  console.log('[DEBUG] ✓ Restoring session from localStorage');
-                  console.log('[DEBUG] About to set session:', {
-                    hasStoredSession: !!storedSession,
-                    userEmail: storedSession.user?.email
-                  });
-                  
-                  // Set state
-                  setSession(storedSession);
-                  setUser(storedSession.user);
-                  
-                  // Verify state was set
-                  setTimeout(() => {
-                    console.log('[DEBUG] State verification after setting:', {
-                      sessionSet: !!session,
-                      userSet: !!user,
-                      userEmail: user?.email
-                    });
-                  }, 50);
-                  
-                  setAuthLoading(false);
-                  loadCachedDrinks(storedSession.user.id);
-                  
-                  console.log('[DEBUG] ✓ Session restoration complete');
-                } else {
-                  console.log('[DEBUG] ✗ No valid session in localStorage');
+                } catch (e) {
+                  console.error('Error parsing localStorage:', e);
                   setSession(null);
                   setUser(null);
                   setAuthLoading(false);
                 }
-              } catch (e) {
-                console.error('[DEBUG] ✗ Error parsing localStorage:', e);
+              } else {
                 setSession(null);
                 setUser(null);
                 setAuthLoading(false);
               }
-            } else {
-              console.log('[DEBUG] ✗ INITIAL_SESSION - no session and no localStorage data');
-              setSession(null);
-              setUser(null);
-              setAuthLoading(false);
             }
           } else {
-            console.log('[DEBUG] Other auth event:', event);
             // For other events, update state if we have a session
             if (session) {
               setSession(session);
               setUser(session.user);
             }
           }
-          console.log('[DEBUG] ===== Auth state change handler complete =====');
         });
 
-        return () => {
-          console.log('[DEBUG] Cleaning up auth state change listener');
-          subscription.unsubscribe();
-        };
+        return () => subscription.unsubscribe();
       }, []);
 
       const cacheDrinksData = (drinksData, userId) => {
@@ -1135,7 +800,6 @@
 
       // Show loading while checking auth
       if (authLoading) {
-        console.log('[DEBUG] Rendering: authLoading is true, showing loading screen');
         return (
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
             <div className="text-2xl">Loading...</div>
@@ -1144,14 +808,7 @@
       }
 
       // Show auth UI if not logged in
-      console.log('[DEBUG] Rendering: authLoading is false, checking user:', {
-        hasUser: !!user,
-        userEmail: user?.email,
-        hasSession: !!session
-      });
-      
       if (!user) {
-        console.log('[DEBUG] Rendering: No user, showing auth UI');
         return (
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center p-6">
             <div className="max-w-md w-full">
@@ -1676,14 +1333,7 @@
       );
     }
 
-    console.log('[DEBUG] About to render DrinkTracker component');
-    try {
-      ReactDOM.render(<DrinkTracker />, document.getElementById('root'));
-      console.log('[DEBUG] DrinkTracker component rendered successfully');
-    } catch (error) {
-      console.error('[DEBUG] Error rendering component:', error);
-      alert('Error rendering app: ' + error.message);
-    }
+    ReactDOM.render(<DrinkTracker />, document.getElementById('root'));
   </script>
 </body>
 </html>
