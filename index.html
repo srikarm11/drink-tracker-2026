@@ -716,6 +716,62 @@
         }
       };
 
+      const deleteAllDrinks = async () => {
+        if (!user) return;
+        
+        if (drinks.length === 0) {
+          alert('No drinks to delete.');
+          return;
+        }
+        
+        // Double confirmation for deleting all
+        const confirmMessage = `Are you sure you want to delete ALL ${drinks.length} drink${drinks.length === 1 ? '' : 's'}? This action cannot be undone.`;
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+        
+        // Check if offline
+        if (!isOnline) {
+          alert('You are offline. Deleting all drinks requires an internet connection. Please try again when online.');
+          return;
+        }
+        
+        setDeleting(true);
+        
+        try {
+          const drinkCount = drinks.length;
+          
+          // Delete all drinks for this user - simpler approach that doesn't require ID array
+          const { error } = await supabase
+            .from('drinks')
+            .delete()
+            .eq('user_id', user.id); // RLS ensures user can only delete their own drinks
+
+          if (error) throw error;
+
+          // Update local state
+          setDrinks([]);
+          
+          // Update cache
+          cacheDrinksData([], user.id);
+          
+          // Reset pagination
+          setCurrentPage(1);
+          
+          // Close modal
+          setShowBulkDelete(false);
+          setDeleteStartDate('');
+          setDeleteEndDate('');
+          
+          alert(`Successfully deleted all ${drinkCount} drink${drinkCount === 1 ? '' : 's'}.`);
+        } catch (error) {
+          console.error('Error deleting all drinks:', error);
+          alert(`Failed to delete all drinks: ${error.message}`);
+        } finally {
+          setDeleting(false);
+        }
+      };
+
       const removeFromQuickLog = (drinkName) => {
         const updated = quickLogDrinks.filter(d => d.name !== drinkName);
         setQuickLogDrinks(updated);
@@ -1556,7 +1612,7 @@
 
                     {/* Period Selector Tabs */}
                     <div className="flex gap-2 border-t border-white/20 pt-4">
-                      {['week', 'month', 'year', 'all'].map(period => (
+                      {['week', 'month', 'year'].map(period => (
                         <button
                           key={period}
                           onClick={() => setDashboardPeriod(period)}
@@ -1566,7 +1622,7 @@
                               : 'bg-white/10 hover:bg-white/20 text-slate-300'
                           }`}
                         >
-                          {period === 'all' ? 'Hide Charts' : period}
+                          {period}
                         </button>
                       ))}
                     </div>
@@ -1941,6 +1997,40 @@
                   </div>
 
                   <div className="space-y-4">
+                    {/* Delete All Option */}
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                      <div className="text-red-400 font-semibold mb-2">Delete All Drinks</div>
+                      <div className="text-sm text-slate-300 mb-3">
+                        This will permanently delete all {drinks.length} drink{drinks.length === 1 ? '' : 's'} in your account. This action cannot be undone.
+                      </div>
+                      <button
+                        onClick={deleteAllDrinks}
+                        disabled={deleting || drinks.length === 0}
+                        className="w-full bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 disabled:cursor-not-allowed rounded-lg py-2 font-semibold transition-colors flex items-center justify-center gap-2"
+                      >
+                        {deleting ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Deleting...
+                          </>
+                        ) : (
+                          'Delete All'
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-white/20"></div>
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-slate-800 text-slate-400">OR</span>
+                      </div>
+                    </div>
+
                     <div>
                       <label className="block text-sm text-slate-300 mb-2">Start Date</label>
                       <input
