@@ -937,6 +937,10 @@
       };
 
       const getFilteredDrinks = () => {
+        // Guard against undefined or null drinks array
+        if (!drinks || !Array.isArray(drinks)) {
+          return [];
+        }
         let filtered = [...drinks];
 
         // Apply category filter
@@ -1006,6 +1010,9 @@
       };
 
       const calculateWeeklyStats = (filteredDrinks) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) {
+          return [];
+        }
         const weeklyMap = new Map();
         
         filteredDrinks.forEach(drink => {
@@ -1037,6 +1044,9 @@
       };
 
       const calculateMonthlyStats = (filteredDrinks) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) {
+          return [];
+        }
         const monthlyMap = new Map();
         
         filteredDrinks.forEach(drink => {
@@ -1063,6 +1073,9 @@
       };
 
       const calculateYearlyStats = (filteredDrinks) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) {
+          return [];
+        }
         const yearlyMap = new Map();
         
         filteredDrinks.forEach(drink => {
@@ -1088,7 +1101,7 @@
       };
 
       const calculateDailyAverage = (filteredDrinks, period) => {
-        if (filteredDrinks.length === 0) return 0;
+        if (!filteredDrinks || filteredDrinks.length === 0) return 0;
         
         const dates = filteredDrinks.map(d => {
           const date = new Date(d.timestamp);
@@ -1103,7 +1116,7 @@
       };
 
       const calculateStreak = (filteredDrinks) => {
-        if (filteredDrinks.length === 0) {
+        if (!filteredDrinks || filteredDrinks.length === 0) {
           return { currentStreak: 0, longestStreak: 0, lastDrinkDate: null };
         }
         
@@ -1150,6 +1163,22 @@
       };
 
       const calculatePeakDays = (filteredDrinks) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) {
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          return {
+            dayOfWeek: {
+              peak: 'N/A',
+              count: 0,
+              all: dayNames.map((name, idx) => ({ name, count: 0 }))
+            },
+            dayOfMonth: {
+              peak: 0,
+              count: 0,
+              all: []
+            }
+          };
+        }
+
         const dayOfWeekCount = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }; // Sun-Sat
         const dayOfMonthCount = {};
         
@@ -1166,27 +1195,31 @@
           dayOfMonthCount[dayOfMonth]++;
         });
         
-        // Find peak day of week
-        const peakDayOfWeek = Object.keys(dayOfWeekCount).reduce((a, b) => 
-          dayOfWeekCount[a] > dayOfWeekCount[b] ? a : b
-        );
-        
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         
-        // Find peak day of month
-        const peakDayOfMonth = Object.keys(dayOfMonthCount).reduce((a, b) => 
-          dayOfMonthCount[a] > dayOfMonthCount[b] ? a : b
-        );
+        // Find peak day of week (with fallback)
+        const peakDayOfWeek = Object.keys(dayOfWeekCount).length > 0
+          ? Object.keys(dayOfWeekCount).reduce((a, b) => 
+              dayOfWeekCount[a] > dayOfWeekCount[b] ? a : b
+            )
+          : '0';
+        
+        // Find peak day of month (with fallback)
+        const peakDayOfMonth = Object.keys(dayOfMonthCount).length > 0
+          ? Object.keys(dayOfMonthCount).reduce((a, b) => 
+              dayOfMonthCount[a] > dayOfMonthCount[b] ? a : b
+            )
+          : '1';
         
         return {
           dayOfWeek: {
             peak: dayNames[parseInt(peakDayOfWeek)],
-            count: dayOfWeekCount[peakDayOfWeek],
+            count: dayOfWeekCount[peakDayOfWeek] || 0,
             all: dayNames.map((name, idx) => ({ name, count: dayOfWeekCount[idx] }))
           },
           dayOfMonth: {
             peak: parseInt(peakDayOfMonth),
-            count: dayOfMonthCount[peakDayOfMonth],
+            count: dayOfMonthCount[peakDayOfMonth] || 0,
             all: Object.keys(dayOfMonthCount).map(day => ({
               day: parseInt(day),
               count: dayOfMonthCount[day]
@@ -1535,7 +1568,8 @@
                         <h3 className="text-lg font-semibold text-slate-300 mb-3">Weekly Breakdown</h3>
                         <div className="space-y-2">
                           {weeklyStats.slice(0, 8).map(week => {
-                            const maxCount = Math.max(...weeklyStats.map(w => w.count));
+                            const counts = weeklyStats.map(w => w.count);
+                            const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
                             const percentage = maxCount > 0 ? (week.count / maxCount) * 100 : 0;
                             return (
                               <div key={week.week} className="flex items-center gap-3">
@@ -1563,7 +1597,8 @@
                         <h3 className="text-lg font-semibold text-slate-300 mb-3">Monthly Breakdown</h3>
                         <div className="space-y-2">
                           {monthlyStats.slice(0, 12).map(month => {
-                            const maxCount = Math.max(...monthlyStats.map(m => m.count));
+                            const counts = monthlyStats.map(m => m.count);
+                            const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
                             const percentage = maxCount > 0 ? (month.count / maxCount) * 100 : 0;
                             return (
                               <div key={month.month} className="flex items-center gap-3">
@@ -1589,7 +1624,8 @@
                         <h3 className="text-lg font-semibold text-slate-300 mb-3">Yearly Breakdown</h3>
                         <div className="space-y-2">
                           {yearlyStats.map(year => {
-                            const maxCount = Math.max(...yearlyStats.map(y => y.count));
+                            const counts = yearlyStats.map(y => y.count);
+                            const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
                             const percentage = maxCount > 0 ? (year.count / maxCount) * 100 : 0;
                             return (
                               <div key={year.year} className="flex items-center gap-3">
