@@ -37,6 +37,9 @@
       }
     });
 
+    // App version - update this when releasing new versions
+    const APP_VERSION = '1.0.0';
+
     function DrinkTracker() {
       const [user, setUser] = useState(null);
       const [session, setSession] = useState(null);
@@ -2165,6 +2168,20 @@
                 </div>
               </div>
             )}
+
+            {/* Footer */}
+            <footer className="mt-12 pt-8 pb-6 border-t border-white/10">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+                <div className="flex items-center gap-2">
+                  <span>© {new Date().getFullYear()} Drink Tracker</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="text-purple-400 font-semibold">v{APP_VERSION}</span>
+                </div>
+                <div className="text-xs text-slate-500">
+                  Track every drink, understand your habits
+                </div>
+              </div>
+            </footer>
           </div>
         </div>
       );
