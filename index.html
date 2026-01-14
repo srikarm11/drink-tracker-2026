@@ -38,7 +38,88 @@
     });
 
     // App version - update this when releasing new versions
-    const APP_VERSION = '1.1.1';
+    const APP_VERSION = '2.0.0';
+
+    // Drinks Database Seed Data
+    // This will be migrated to Supabase drinks_database table
+    const DRINKS_DATABASE_SEED = [
+      // Beers
+      { name: 'Guinness', category: 'Beer', calories: 125, cost: null, name_variations: ['guinness', 'guinness stout', 'guinness beer'] },
+      { name: 'Budweiser', category: 'Beer', calories: 145, cost: null, name_variations: ['budweiser', 'bud', 'bud light'] },
+      { name: 'Heineken', category: 'Beer', calories: 150, cost: null, name_variations: ['heineken', 'heineken beer'] },
+      { name: 'Corona', category: 'Beer', calories: 148, cost: null, name_variations: ['corona', 'corona extra', 'corona beer'] },
+      { name: 'Stella Artois', category: 'Beer', calories: 154, cost: null, name_variations: ['stella artois', 'stella', 'stella beer'] },
+      { name: 'IPA', category: 'Beer', calories: 200, cost: null, name_variations: ['ipa', 'india pale ale', 'pale ale'] },
+      { name: 'Lager', category: 'Beer', calories: 150, cost: null, name_variations: ['lager', 'lager beer'] },
+      { name: 'Pilsner', category: 'Beer', calories: 150, cost: null, name_variations: ['pilsner', 'pilsner beer', 'pils'] },
+      { name: 'Wheat Beer', category: 'Beer', calories: 150, cost: null, name_variations: ['wheat beer', 'hefeweizen', 'wheat'] },
+      { name: 'Porter', category: 'Beer', calories: 180, cost: null, name_variations: ['porter', 'porter beer'] },
+      { name: 'Stout', category: 'Beer', calories: 200, cost: null, name_variations: ['stout', 'stout beer'] },
+      { name: 'Sour Beer', category: 'Beer', calories: 150, cost: null, name_variations: ['sour beer', 'sour', 'sour ale'] },
+      { name: 'Modelo', category: 'Beer', calories: 144, cost: null, name_variations: ['modelo', 'modelo especial', 'modelo beer'] },
+      { name: 'Dos Equis', category: 'Beer', calories: 145, cost: null, name_variations: ['dos equis', 'xx', 'dos equis beer'] },
+      { name: 'Blue Moon', category: 'Beer', calories: 171, cost: null, name_variations: ['blue moon', 'blue moon beer'] },
+      { name: 'Sam Adams', category: 'Beer', calories: 175, cost: null, name_variations: ['sam adams', 'samuel adams', 'sam adams beer'] },
+      { name: 'Sierra Nevada', category: 'Beer', calories: 175, cost: null, name_variations: ['sierra nevada', 'sierra nevada pale ale'] },
+      { name: 'Narragansett', category: 'Beer', calories: 140, cost: null, name_variations: ['narragansett', 'gansett', 'narragansett beer'] },
+      
+      // Wines
+      { name: 'Red Wine', category: 'Wine', calories: 125, cost: null, name_variations: ['red wine', 'red', 'wine red'] },
+      { name: 'White Wine', category: 'Wine', calories: 120, cost: null, name_variations: ['white wine', 'white', 'wine white'] },
+      { name: 'Rosé', category: 'Wine', calories: 120, cost: null, name_variations: ['rosé', 'rose', 'rose wine', 'rosé wine'] },
+      { name: 'Champagne', category: 'Wine', calories: 90, cost: null, name_variations: ['champagne', 'champ'] },
+      { name: 'Prosecco', category: 'Wine', calories: 80, cost: null, name_variations: ['prosecco', 'prosecco wine'] },
+      { name: 'Pinot Noir', category: 'Wine', calories: 125, cost: null, name_variations: ['pinot noir', 'pinot'] },
+      { name: 'Cabernet Sauvignon', category: 'Wine', calories: 125, cost: null, name_variations: ['cabernet sauvignon', 'cabernet', 'cab'] },
+      { name: 'Merlot', category: 'Wine', calories: 125, cost: null, name_variations: ['merlot', 'merlot wine'] },
+      { name: 'Chardonnay', category: 'Wine', calories: 120, cost: null, name_variations: ['chardonnay', 'chardonnay wine', 'chard'] },
+      { name: 'Sauvignon Blanc', category: 'Wine', calories: 120, cost: null, name_variations: ['sauvignon blanc', 'sauv blanc', 'sauvignon'] },
+      { name: 'Pinot Grigio', category: 'Wine', calories: 120, cost: null, name_variations: ['pinot grigio', 'pinot gris'] },
+      { name: 'Riesling', category: 'Wine', calories: 120, cost: null, name_variations: ['riesling', 'riesling wine'] },
+      { name: 'Moscato', category: 'Wine', calories: 127, cost: null, name_variations: ['moscato', 'moscato wine'] },
+      { name: 'Malbec', category: 'Wine', calories: 125, cost: null, name_variations: ['malbec', 'malbec wine'] },
+      { name: 'Syrah', category: 'Wine', calories: 125, cost: null, name_variations: ['syrah', 'shiraz', 'syrah wine'] },
+      { name: 'Zinfandel', category: 'Wine', calories: 125, cost: null, name_variations: ['zinfandel', 'zin', 'zinfandel wine'] },
+      { name: 'Sangria', category: 'Wine', calories: 150, cost: null, name_variations: ['sangria', 'sangria wine'] },
+      
+      // Cocktails
+      { name: 'Old Fashioned', category: 'Cocktail', calories: 180, cost: null, name_variations: ['old fashioned', 'old fashioned cocktail'] },
+      { name: 'Negroni', category: 'Cocktail', calories: 185, cost: null, name_variations: ['negroni', 'negroni cocktail'] },
+      { name: 'Martini', category: 'Cocktail', calories: 160, cost: null, name_variations: ['martini', 'martini cocktail', 'dry martini'] },
+      { name: 'Dirty Martini', category: 'Cocktail', calories: 180, cost: null, name_variations: ['dirty martini', 'dirty martini cocktail'] },
+      { name: 'Manhattan', category: 'Cocktail', calories: 165, cost: null, name_variations: ['manhattan', 'manhattan cocktail'] },
+      { name: 'Moscow Mule', category: 'Cocktail', calories: 150, cost: null, name_variations: ['moscow mule', 'moscow mule cocktail', 'mule'] },
+      { name: 'Mojito', category: 'Cocktail', calories: 150, cost: null, name_variations: ['mojito', 'mojito cocktail'] },
+      { name: 'Margarita', category: 'Cocktail', calories: 200, cost: null, name_variations: ['margarita', 'margarita cocktail'] },
+      { name: 'Cosmopolitan', category: 'Cocktail', calories: 150, cost: null, name_variations: ['cosmopolitan', 'cosmo', 'cosmopolitan cocktail'] },
+      { name: 'Daiquiri', category: 'Cocktail', calories: 150, cost: null, name_variations: ['daiquiri', 'daiquiri cocktail'] },
+      { name: 'Whiskey Sour', category: 'Cocktail', calories: 160, cost: null, name_variations: ['whiskey sour', 'whisky sour', 'sour'] },
+      { name: 'Gin & Tonic', category: 'Cocktail', calories: 150, cost: null, name_variations: ['gin and tonic', 'gin & tonic', 'g&t', 'g and t'] },
+      { name: 'Rum & Coke', category: 'Cocktail', calories: 180, cost: null, name_variations: ['rum and coke', 'rum & coke', 'cuba libre'] },
+      { name: 'Vodka Soda', category: 'Cocktail', calories: 100, cost: null, name_variations: ['vodka soda', 'vodka and soda'] },
+      { name: 'Vodka Cranberry', category: 'Cocktail', calories: 150, cost: null, name_variations: ['vodka cranberry', 'vodka and cranberry', 'cape cod'] },
+      { name: 'Screwdriver', category: 'Cocktail', calories: 180, cost: null, name_variations: ['screwdriver', 'vodka orange'] },
+      { name: 'Bloody Mary', category: 'Cocktail', calories: 120, cost: null, name_variations: ['bloody mary', 'bloody mary cocktail'] },
+      { name: 'Mimosa', category: 'Cocktail', calories: 150, cost: null, name_variations: ['mimosa', 'mimosa cocktail'] },
+      { name: 'Bellini', category: 'Cocktail', calories: 120, cost: null, name_variations: ['bellini', 'bellini cocktail'] },
+      { name: 'Espresso Martini', category: 'Cocktail', calories: 200, cost: null, name_variations: ['espresso martini', 'espresso martini cocktail'] },
+      { name: 'French 75', category: 'Cocktail', calories: 150, cost: null, name_variations: ['french 75', 'french 75 cocktail'] },
+      { name: 'Aperol Spritz', category: 'Cocktail', calories: 150, cost: null, name_variations: ['aperol spritz', 'spritz', 'aperol spritz cocktail'] },
+      { name: 'Paloma', category: 'Cocktail', calories: 200, cost: null, name_variations: ['paloma', 'paloma cocktail'] },
+      { name: 'Tom Collins', category: 'Cocktail', calories: 150, cost: null, name_variations: ['tom collins', 'collins', 'tom collins cocktail'] },
+      { name: 'Sidecar', category: 'Cocktail', calories: 180, cost: null, name_variations: ['sidecar', 'sidecar cocktail'] },
+      { name: 'Boulevardier', category: 'Cocktail', calories: 185, cost: null, name_variations: ['boulevardier', 'boulevardier cocktail'] },
+      { name: 'Sazerac', category: 'Cocktail', calories: 180, cost: null, name_variations: ['sazerac', 'sazerac cocktail'] },
+      { name: 'Last Word', category: 'Cocktail', calories: 150, cost: null, name_variations: ['last word', 'last word cocktail'] },
+      { name: 'Paper Plane', category: 'Cocktail', calories: 150, cost: null, name_variations: ['paper plane', 'paper plane cocktail'] },
+      { name: 'Bourbon', category: 'Cocktail', calories: 100, cost: null, name_variations: ['bourbon', 'bourbon whiskey', 'bourbon neat'] },
+      { name: 'Scotch', category: 'Cocktail', calories: 100, cost: null, name_variations: ['scotch', 'scotch whisky', 'scotch neat'] },
+      { name: 'Whiskey', category: 'Cocktail', calories: 100, cost: null, name_variations: ['whiskey', 'whisky', 'whiskey neat'] },
+      { name: 'Tequila Shot', category: 'Cocktail', calories: 100, cost: null, name_variations: ['tequila shot', 'tequila', 'shot of tequila'] },
+      { name: 'Vodka Shot', category: 'Cocktail', calories: 100, cost: null, name_variations: ['vodka shot', 'vodka', 'shot of vodka'] },
+      { name: 'Rum Shot', category: 'Cocktail', calories: 100, cost: null, name_variations: ['rum shot', 'rum', 'shot of rum'] },
+      { name: 'Gin Shot', category: 'Cocktail', calories: 100, cost: null, name_variations: ['gin shot', 'gin', 'shot of gin'] },
+    ];
 
     function DrinkTracker() {
       const [user, setUser] = useState(null);
@@ -91,6 +172,135 @@
       const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
       const [dashboardPresetPeriod, setDashboardPresetPeriod] = useState('all'); // 'thisWeek' | 'thisMonth' | 'last30Days' | 'thisYear' | 'all'
 
+      // Freeform parsing state
+      const [freeformText, setFreeformText] = useState('');
+      const [parsedDrinks, setParsedDrinks] = useState([]);
+      const [drinksDatabase, setDrinksDatabase] = useState(DRINKS_DATABASE_SEED);
+
+      // Parsing Functions
+      const numberWords = {
+        'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+        'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+        'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15
+      };
+
+      const normalizeText = (text) => {
+        return text.toLowerCase().trim().replace(/[^\w\s]/g, '');
+      };
+
+      const extractQuantity = (text) => {
+        // Try to find numbers first
+        const numberMatch = text.match(/(\d+)\s*(x|×)?/i);
+        if (numberMatch) {
+          return parseInt(numberMatch[1]);
+        }
+        
+        // Try number words
+        for (const [word, num] of Object.entries(numberWords)) {
+          if (text.toLowerCase().includes(word)) {
+            return num;
+          }
+        }
+        
+        // Default to 1 if no quantity found
+        return 1;
+      };
+
+      const fuzzyMatchDrink = (input, database) => {
+        const normalizedInput = normalizeText(input);
+        
+        // Exact match first
+        for (const drink of database) {
+          if (normalizeText(drink.name) === normalizedInput) {
+            return drink;
+          }
+          // Check variations
+          if (drink.name_variations) {
+            for (const variation of drink.name_variations) {
+              if (normalizeText(variation) === normalizedInput) {
+                return drink;
+              }
+            }
+          }
+        }
+        
+        // Fuzzy match - check if input contains drink name or vice versa
+        for (const drink of database) {
+          const normalizedDrink = normalizeText(drink.name);
+          if (normalizedInput.includes(normalizedDrink) || normalizedDrink.includes(normalizedInput)) {
+            return drink;
+          }
+          // Check variations
+          if (drink.name_variations) {
+            for (const variation of drink.name_variations) {
+              const normalizedVariation = normalizeText(variation);
+              if (normalizedInput.includes(normalizedVariation) || normalizedVariation.includes(normalizedInput)) {
+                return drink;
+              }
+            }
+          }
+        }
+        
+        // Category inference for generic terms
+        if (normalizedInput.includes('beer') || normalizedInput.includes('beers')) {
+          return { name: 'Beer', category: 'Beer', calories: 150, cost: null, name_variations: [] };
+        }
+        if (normalizedInput.includes('wine') || normalizedInput.includes('wines')) {
+          return { name: 'Wine', category: 'Wine', calories: 125, cost: null, name_variations: [] };
+        }
+        if (normalizedInput.includes('cocktail') || normalizedInput.includes('cocktails')) {
+          return { name: 'Cocktail', category: 'Cocktail', calories: 150, cost: null, name_variations: [] };
+        }
+        
+        return null;
+      };
+
+      const parseFreeformText = (text) => {
+        if (!text || !text.trim()) return [];
+        
+        const results = [];
+        // Split by common delimiters: comma, "and", "&"
+        const parts = text.split(/[,&]|and/i).map(p => p.trim()).filter(p => p);
+        
+        for (const part of parts) {
+          const quantity = extractQuantity(part);
+          // Remove quantity from text to get drink name
+          let drinkText = part.replace(/\d+\s*(x|×)?/i, '').trim();
+          drinkText = drinkText.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)\b/gi, '').trim();
+          
+          if (!drinkText) continue;
+          
+          const matchedDrink = fuzzyMatchDrink(drinkText, drinksDatabase);
+          
+          if (matchedDrink) {
+            for (let i = 0; i < quantity; i++) {
+              results.push({
+                name: matchedDrink.name,
+                category: matchedDrink.category,
+                calories: matchedDrink.calories,
+                cost: matchedDrink.cost,
+                originalText: part.trim(),
+                matched: true
+              });
+            }
+          } else {
+            // Unrecognized drink - still add it
+            for (let i = 0; i < quantity; i++) {
+              results.push({
+                name: drinkText,
+                category: 'Cocktail', // Default category
+                calories: null,
+                cost: null,
+                originalText: part.trim(),
+                matched: false
+              });
+            }
+          }
+        }
+        
+        return results;
+      };
+
       // Check for existing session on mount
       // Note: We rely on onAuthStateChange INITIAL_SESSION event, but also call checkSession as backup
       useEffect(() => {
@@ -129,6 +339,21 @@
           loadData();
         }
       }, [user]);
+
+      // Parse freeform text with debounce
+      useEffect(() => {
+        if (!showOtherForm || !freeformText.trim()) {
+          setParsedDrinks([]);
+          return;
+        }
+        
+        const timer = setTimeout(() => {
+          const parsed = parseFreeformText(freeformText);
+          setParsedDrinks(parsed);
+        }, 300); // 300ms debounce
+        
+        return () => clearTimeout(timer);
+      }, [freeformText, showOtherForm, drinksDatabase]);
 
 
       const checkSession = async () => {
@@ -520,9 +745,14 @@
             throw new Error('No valid session found. Please sign in again.');
           }
           
+          // Try to match drink in database to get calories/cost
+          const matchedDrink = fuzzyMatchDrink(name, drinksDatabase);
+          
           const newDrink = {
             name: name,
             category: category,
+            calories: matchedDrink ? matchedDrink.calories : null,
+            cost: matchedDrink ? matchedDrink.cost : null,
             timestamp: new Date().toISOString(),
             user_id: currentSession.user.id
           };
@@ -601,6 +831,69 @@
           
           alert(`Failed to add drink: ${errorMessage}\n\nCheck the browser console (F12) for more details.\n\nIf you see "column" or "permission" errors, you may need to set up your Supabase database. See SUPABASE_SETUP.md for instructions.`);
         }
+      };
+
+      const batchLogDrinks = async (drinksToLog) => {
+        if (!drinksToLog || drinksToLog.length === 0 || !user) return;
+        
+        try {
+          // Get current session to ensure we use the authenticated user ID
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          
+          if (!currentSession || !currentSession.access_token) {
+            throw new Error('No valid session found. Please sign in again.');
+          }
+          
+          const timestamp = new Date().toISOString();
+          const drinksToInsert = drinksToLog.map(drink => ({
+            name: drink.name.trim(),
+            category: drink.category,
+            calories: drink.calories,
+            cost: drink.cost,
+            timestamp: timestamp,
+            user_id: currentSession.user.id
+          }));
+
+          const { data, error } = await supabase
+            .from('drinks')
+            .insert(drinksToInsert)
+            .select();
+
+          if (error) throw error;
+
+          if (data) {
+            const updatedDrinks = [...data, ...drinks];
+            setDrinks(updatedDrinks);
+            // Update cache
+            cacheDrinksData(updatedDrinks, currentSession.user.id);
+          }
+          
+          setFreeformText('');
+          setParsedDrinks([]);
+          setShowOtherForm(false);
+        } catch (error) {
+          console.error('Error adding drinks:', error);
+          const errorMessage = error.message || 'Unknown error occurred';
+          
+          // If offline, queue the action
+          if (!isOnline || error.message.includes('fetch')) {
+            alert('You are offline. The drinks will be saved when you reconnect.');
+            return;
+          }
+          
+          alert(`Failed to add drinks: ${errorMessage}\n\nCheck the browser console (F12) for more details.`);
+        }
+      };
+
+      const updateParsedDrink = (index, field, value) => {
+        const updated = [...parsedDrinks];
+        updated[index] = { ...updated[index], [field]: value };
+        setParsedDrinks(updated);
+      };
+
+      const removeParsedDrink = (index) => {
+        const updated = parsedDrinks.filter((_, i) => i !== index);
+        setParsedDrinks(updated);
       };
 
       const deleteDrink = async (id) => {
@@ -1247,6 +1540,74 @@
         return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
       };
 
+      const calculateCalorieStats = (filteredDrinks) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) {
+          return { total: 0, average: 0, drinksWithCalories: 0 };
+        }
+        
+        const drinksWithCalories = filteredDrinks.filter(d => d.calories !== null && d.calories !== undefined);
+        const total = drinksWithCalories.reduce((sum, d) => sum + (d.calories || 0), 0);
+        const average = drinksWithCalories.length > 0 ? (total / drinksWithCalories.length).toFixed(1) : 0;
+        
+        return { total, average: parseFloat(average), drinksWithCalories: drinksWithCalories.length };
+      };
+
+      const calculateCostStats = (filteredDrinks) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) {
+          return { total: 0, average: 0, drinksWithCost: 0 };
+        }
+        
+        const drinksWithCost = filteredDrinks.filter(d => d.cost !== null && d.cost !== undefined);
+        const total = drinksWithCost.reduce((sum, d) => sum + parseFloat(d.cost || 0), 0);
+        const average = drinksWithCost.length > 0 ? (total / drinksWithCost.length).toFixed(2) : 0;
+        
+        return { total, average: parseFloat(average), drinksWithCost: drinksWithCost.length };
+      };
+
+      const getCalorieTrends = (filteredDrinks, period) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) return [];
+        
+        const drinksWithCalories = filteredDrinks.filter(d => d.calories !== null && d.calories !== undefined);
+        const dailyMap = new Map();
+        
+        drinksWithCalories.forEach(drink => {
+          const date = new Date(drink.timestamp);
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          
+          if (!dailyMap.has(dateKey)) {
+            dailyMap.set(dateKey, { date: dateKey, calories: 0, count: 0 });
+          }
+          
+          const dayData = dailyMap.get(dateKey);
+          dayData.calories += drink.calories || 0;
+          dayData.count++;
+        });
+        
+        return Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+      };
+
+      const getCostTrends = (filteredDrinks, period) => {
+        if (!filteredDrinks || filteredDrinks.length === 0) return [];
+        
+        const drinksWithCost = filteredDrinks.filter(d => d.cost !== null && d.cost !== undefined);
+        const dailyMap = new Map();
+        
+        drinksWithCost.forEach(drink => {
+          const date = new Date(drink.timestamp);
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          
+          if (!dailyMap.has(dateKey)) {
+            dailyMap.set(dateKey, { date: dateKey, cost: 0, count: 0 });
+          }
+          
+          const dayData = dailyMap.get(dateKey);
+          dayData.cost += parseFloat(drink.cost || 0);
+          dayData.count++;
+        });
+        
+        return Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+      };
+
       const getStats = () => {
         const filtered = getFilteredDrinks();
         const total = filtered.length;
@@ -1525,6 +1886,8 @@
                 const weeklyStats = calculateWeeklyStats(filtered);
                 const monthlyStats = calculateMonthlyStats(filtered);
                 const yearlyStats = calculateYearlyStats(filtered);
+                const calorieStats = calculateCalorieStats(filtered);
+                const costStats = calculateCostStats(filtered);
 
                 return (
                   <>
@@ -1577,6 +1940,95 @@
                         <div className="text-xs text-slate-500 mt-1">{peakDays.dayOfWeek.count} drinks</div>
                       </div>
                     </div>
+
+                    {/* Calorie and Cost Metrics */}
+                    {(calorieStats.drinksWithCalories > 0 || costStats.drinksWithCost > 0) && (
+                      <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-t border-white/20 pt-6">
+                        {calorieStats.drinksWithCalories > 0 && (
+                          <>
+                            <div className="bg-white/5 rounded-xl p-4">
+                              <div className="text-slate-400 text-xs mb-1">Total Calories</div>
+                              <div className="text-2xl font-bold text-orange-400">{calorieStats.total.toLocaleString()}</div>
+                              <div className="text-xs text-slate-500 mt-1">avg {calorieStats.average} per drink</div>
+                            </div>
+                            <div className="bg-white/5 rounded-xl p-4">
+                              <div className="text-slate-400 text-xs mb-1">Total Cost</div>
+                              <div className="text-2xl font-bold text-green-400">${costStats.total.toFixed(2)}</div>
+                              <div className="text-xs text-slate-500 mt-1">avg ${costStats.average} per drink</div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Calorie and Cost Trends */}
+                    {(calorieStats.drinksWithCalories > 0 || costStats.drinksWithCost > 0) && (
+                      <div className="mb-6 pb-6 border-b border-white/20">
+                        <h3 className="text-lg font-semibold text-slate-300 mb-4">Calories & Cost Trends</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {calorieStats.drinksWithCalories > 0 && (() => {
+                            const calorieTrends = getCalorieTrends(filtered, dashboardPresetPeriod);
+                            const maxCalories = calorieTrends.length > 0 ? Math.max(...calorieTrends.map(t => t.calories)) : 0;
+                            return (
+                              <div>
+                                <div className="text-sm text-slate-400 mb-2">Daily Calories</div>
+                                <div className="space-y-2">
+                                  {calorieTrends.slice(-7).map((day, idx) => {
+                                    const percentage = maxCalories > 0 ? (day.calories / maxCalories) * 100 : 0;
+                                    return (
+                                      <div key={idx} className="flex items-center gap-3">
+                                        <div className="text-xs text-slate-400 w-20">
+                                          {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </div>
+                                        <div className="flex-1 bg-white/10 rounded-full h-6 relative overflow-hidden">
+                                          <div
+                                            className="bg-orange-500 h-full rounded-full transition-all"
+                                            style={{ width: `${percentage}%` }}
+                                          />
+                                          <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
+                                            {day.calories}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          {costStats.drinksWithCost > 0 && (() => {
+                            const costTrends = getCostTrends(filtered, dashboardPresetPeriod);
+                            const maxCost = costTrends.length > 0 ? Math.max(...costTrends.map(t => t.cost)) : 0;
+                            return (
+                              <div>
+                                <div className="text-sm text-slate-400 mb-2">Daily Cost</div>
+                                <div className="space-y-2">
+                                  {costTrends.slice(-7).map((day, idx) => {
+                                    const percentage = maxCost > 0 ? (day.cost / maxCost) * 100 : 0;
+                                    return (
+                                      <div key={idx} className="flex items-center gap-3">
+                                        <div className="text-xs text-slate-400 w-20">
+                                          {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </div>
+                                        <div className="flex-1 bg-white/10 rounded-full h-6 relative overflow-hidden">
+                                          <div
+                                            className="bg-green-500 h-full rounded-full transition-all"
+                                            style={{ width: `${percentage}%` }}
+                                          />
+                                          <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
+                                            ${day.cost.toFixed(2)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Time Series Display */}
                     {dashboardPeriod === 'week' && weeklyStats.length > 0 && (
@@ -1712,7 +2164,11 @@
               {/* Prominent "Log a Drink" Button */}
               {!editMode && (
                 <button
-                  onClick={() => setShowOtherForm(true)}
+                  onClick={() => {
+                    setShowOtherForm(true);
+                    setFreeformText('');
+                    setParsedDrinks([]);
+                  }}
                   className="w-full bg-purple-500 hover:bg-purple-600 text-white rounded-xl py-4 font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 mb-4 shadow-lg"
                   style={{ boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)' }}
                 >
@@ -2144,7 +2600,11 @@
             {/* Fixed "+ Log a Drink" Button */}
             {!showOtherForm && (
               <button
-                onClick={() => setShowOtherForm(true)}
+                onClick={() => {
+                  setShowOtherForm(true);
+                  setFreeformText('');
+                  setParsedDrinks([]);
+                }}
                 className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 bg-purple-500 hover:bg-purple-600 text-white rounded-full p-4 sm:p-5 shadow-2xl z-40 transition-all hover:scale-110 active:scale-95 flex items-center justify-center gap-2 font-semibold text-base sm:text-lg"
                 style={{ boxShadow: '0 10px 25px rgba(168, 85, 247, 0.4)' }}
               >
@@ -2155,16 +2615,17 @@
               </button>
             )}
 
-            {/* Drink Entry Modal/Form - shown when fixed button is clicked */}
+            {/* Freeform Drink Entry Modal - shown when fixed button is clicked */}
             {showOtherForm && (
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div className="bg-slate-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-white">Log a Drink</h3>
+                    <h3 className="text-xl font-semibold text-white">Log Drinks</h3>
                     <button
                       onClick={() => {
                         setShowOtherForm(false);
-                        setCustomDrink('');
+                        setFreeformText('');
+                        setParsedDrinks([]);
                       }}
                       className="text-slate-400 hover:text-white transition-colors"
                     >
@@ -2174,39 +2635,89 @@
                     </button>
                   </div>
                   <div className="space-y-4">
-                    <input
-                      type="text"
-                      placeholder="What did you drink?"
-                      value={customDrink}
-                      onChange={(e) => setCustomDrink(e.target.value)}
-                      className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-400"
-                      autoFocus
-                    />
-                    <div className="text-sm text-slate-300 mb-2">Select category:</div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => addCustomDrink('Beer')}
-                        className="flex-1 bg-amber-500/20 hover:bg-amber-500 border border-amber-500/50 rounded-lg py-3 font-semibold transition-colors"
-                      >
-                        Beer
-                      </button>
-                      <button
-                        onClick={() => addCustomDrink('Cocktail')}
-                        className="flex-1 bg-pink-500/20 hover:bg-pink-500 border border-pink-500/50 rounded-lg py-3 font-semibold transition-colors"
-                      >
-                        Cocktail
-                      </button>
-                      <button
-                        onClick={() => addCustomDrink('Wine')}
-                        className="flex-1 bg-red-500/20 hover:bg-red-500 border border-red-500/50 rounded-lg py-3 font-semibold transition-colors"
-                      >
-                        Wine
-                      </button>
+                    <div>
+                      <textarea
+                        placeholder="Enter drinks naturally, e.g., '2 beers, 1 wine, 3 cocktails' or '1 dirty martini, 1 negroni, and 2 guinness'"
+                        value={freeformText}
+                        onChange={(e) => setFreeformText(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-400 min-h-[120px] resize-y"
+                        autoFocus
+                      />
+                      <p className="text-xs text-slate-400 mt-2">
+                        Type multiple drinks separated by commas or "and". The system will automatically parse and recognize them.
+                      </p>
                     </div>
+
+                    {/* Parsed Drinks Preview */}
+                    {parsedDrinks.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="text-sm font-semibold text-slate-300">
+                          Preview ({parsedDrinks.length} drink{parsedDrinks.length !== 1 ? 's' : ''}):
+                        </div>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {parsedDrinks.map((drink, index) => (
+                            <div key={index} className="bg-white/5 rounded-lg p-3 flex items-start gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <input
+                                    type="text"
+                                    value={drink.name}
+                                    onChange={(e) => updateParsedDrink(index, 'name', e.target.value)}
+                                    className="flex-1 bg-white/10 border border-white/20 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                  />
+                                  <select
+                                    value={drink.category}
+                                    onChange={(e) => updateParsedDrink(index, 'category', e.target.value)}
+                                    className="bg-white/10 border border-white/20 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                  >
+                                    <option value="Beer">Beer</option>
+                                    <option value="Wine">Wine</option>
+                                    <option value="Cocktail">Cocktail</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-slate-400">
+                                  {drink.matched === false && (
+                                    <span className="text-yellow-400">⚠ Not recognized - please verify</span>
+                                  )}
+                                  {drink.calories && (
+                                    <span>Calories: {drink.calories}</span>
+                                  )}
+                                  {drink.cost && (
+                                    <span>Cost: ${drink.cost}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => removeParsedDrink(index)}
+                                className="text-red-400 hover:text-red-300 transition-colors"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => batchLogDrinks(parsedDrinks)}
+                          className="w-full bg-purple-500 hover:bg-purple-600 text-white rounded-lg py-3 font-semibold transition-colors"
+                        >
+                          Log {parsedDrinks.length} Drink{parsedDrinks.length !== 1 ? 's' : ''}
+                        </button>
+                      </div>
+                    )}
+
+                    {parsedDrinks.length === 0 && freeformText.trim() && (
+                      <div className="text-sm text-slate-400 text-center py-4">
+                        Start typing to see parsed drinks...
+                      </div>
+                    )}
+
                     <button
                       onClick={() => {
                         setShowOtherForm(false);
-                        setCustomDrink('');
+                        setFreeformText('');
+                        setParsedDrinks([]);
                       }}
                       className="w-full bg-white/20 hover:bg-white/30 rounded-lg py-2 transition-colors"
                     >
