@@ -176,6 +176,15 @@
       const [freeformText, setFreeformText] = useState('');
       const [parsedDrinks, setParsedDrinks] = useState([]);
       const [drinksDatabase, setDrinksDatabase] = useState(DRINKS_DATABASE_SEED);
+      
+      // Drink detail/edit state
+      const [selectedDrink, setSelectedDrink] = useState(null);
+      const [editingDrinkDetail, setEditingDrinkDetail] = useState(null);
+      const [showDrinkDetail, setShowDrinkDetail] = useState(false);
+      
+      // Date/time selection for freeform logging
+      const [freeformDateTime, setFreeformDateTime] = useState(null); // null = use "now"
+      const [showFreeformDateTime, setShowFreeformDateTime] = useState(false);
 
       // Parsing Functions
       const numberWords = {
@@ -299,6 +308,74 @@
         }
         
         return results;
+      };
+
+      // Date/Time Preset Functions
+      const applyDateTimePreset = (preset) => {
+        const now = new Date();
+        let dateTime;
+        
+        switch (preset) {
+          case 'now':
+            dateTime = new Date();
+            break;
+          case 'yesterday':
+            dateTime = new Date(now);
+            dateTime.setDate(now.getDate() - 1);
+            // If current time is early morning (before 8 AM), default to 8 PM yesterday
+            if (now.getHours() < 8) {
+              dateTime.setHours(20, 0, 0, 0);
+            } else {
+              dateTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+            }
+            break;
+          case 'lastNight':
+            dateTime = new Date(now);
+            dateTime.setDate(now.getDate() - 1);
+            dateTime.setHours(23, 0, 0, 0); // 11 PM previous day
+            break;
+          case 'custom':
+            // Return null to indicate custom picker should be shown
+            return null;
+          default:
+            dateTime = new Date();
+        }
+        
+        return dateTime.toISOString();
+      };
+
+      const formatDateTimeForDisplay = (timestamp) => {
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        }) + ' at ' + date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+      };
+
+      const parseDateTimeInput = (dateStr, timeStr) => {
+        if (!dateStr) return null;
+        const date = new Date(dateStr);
+        if (timeStr) {
+          const [hours, minutes] = timeStr.split(':');
+          date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        }
+        return date.toISOString();
+      };
+
+      const openDrinkDetail = (drink) => {
+        setSelectedDrink(drink);
+        setEditingDrinkDetail({
+          ...drink,
+          editDate: new Date(drink.timestamp).toISOString().split('T')[0],
+          editTime: new Date(drink.timestamp).toTimeString().slice(0, 5),
+          editDateTimePreset: 'custom'
+        });
+        setShowDrinkDetail(true);
       };
 
       // Check for existing session on mount
@@ -844,7 +921,21 @@
             throw new Error('No valid session found. Please sign in again.');
           }
           
-          const timestamp = new Date().toISOString();
+          // Determine timestamp - use freeformDateTime if set, otherwise use "now"
+          let timestamp;
+          if (freeformDateTime) {
+            if (freeformDateTime.preset === 'custom' && freeformDateTime.date) {
+              timestamp = parseDateTimeInput(freeformDateTime.date, freeformDateTime.time) || new Date().toISOString();
+            } else if (freeformDateTime.preset !== 'custom') {
+              const presetDateTime = applyDateTimePreset(freeformDateTime.preset);
+              timestamp = presetDateTime || new Date().toISOString();
+            } else {
+              timestamp = new Date().toISOString();
+            }
+          } else {
+            timestamp = new Date().toISOString();
+          }
+          
           const drinksToInsert = drinksToLog.map(drink => ({
             name: drink.name.trim(),
             category: drink.category,
@@ -870,6 +961,8 @@
           
           setFreeformText('');
           setParsedDrinks([]);
+          setFreeformDateTime(null);
+          setShowFreeformDateTime(false);
           setShowOtherForm(false);
         } catch (error) {
           console.error('Error adding drinks:', error);
@@ -894,6 +987,55 @@
       const removeParsedDrink = (index) => {
         const updated = parsedDrinks.filter((_, i) => i !== index);
         setParsedDrinks(updated);
+      };
+
+      const updateDrink = async (drinkId, updates) => {
+        if (!user) return;
+        
+        try {
+          // Get current session to ensure we use the authenticated user ID
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          
+          if (!currentSession || !currentSession.access_token) {
+            throw new Error('No valid session found. Please sign in again.');
+          }
+
+          // Prepare update object
+          const updateData = {};
+          if (updates.timestamp) updateData.timestamp = updates.timestamp;
+          if (updates.calories !== undefined) updateData.calories = updates.calories;
+          if (updates.cost !== undefined) updateData.cost = updates.cost;
+          if (updates.serving_size !== undefined) updateData.serving_size = updates.serving_size;
+
+          const { data, error } = await supabase
+            .from('drinks')
+            .update(updateData)
+            .eq('id', drinkId)
+            .eq('user_id', currentSession.user.id)
+            .select();
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const updatedDrinks = drinks.map(d => d.id === drinkId ? data[0] : d);
+            setDrinks(updatedDrinks);
+            // Update cache
+            cacheDrinksData(updatedDrinks, currentSession.user.id);
+            return data[0];
+          }
+        } catch (error) {
+          console.error('Error updating drink:', error);
+          const errorMessage = error.message || 'Unknown error occurred';
+          
+          // If offline, show message
+          if (!isOnline || error.message.includes('fetch')) {
+            alert('You are offline. The update will be synced when you reconnect.');
+            return;
+          }
+          
+          alert(`Failed to update drink: ${errorMessage}`);
+          throw error;
+        }
       };
 
       const deleteDrink = async (id) => {
@@ -2168,6 +2310,8 @@
                     setShowOtherForm(true);
                     setFreeformText('');
                     setParsedDrinks([]);
+                    setFreeformDateTime(null);
+                    setShowFreeformDateTime(false);
                   }}
                   className="w-full bg-purple-500 hover:bg-purple-600 text-white rounded-xl py-4 font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 mb-4 shadow-lg"
                   style={{ boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)' }}
@@ -2352,16 +2496,20 @@
                   {paginatedDrinks.map((drink) => (
                     <div
                       key={drink.id}
-                      className="bg-white/10 backdrop-blur rounded-xl p-4 flex items-center justify-between hover:bg-white/15 transition-colors"
+                      className="bg-white/10 backdrop-blur rounded-xl p-4 flex items-center justify-between hover:bg-white/15 transition-colors cursor-pointer"
+                      onClick={() => openDrinkDetail(drink)}
                     >
-                      <div>
+                      <div className="flex-1">
                         <div className="font-semibold text-lg">{drink.name}</div>
                         <div className="text-slate-300 text-sm">
                           {drink.category} • {formatDate(drink.timestamp)} at {formatTime(drink.timestamp)}
                         </div>
                       </div>
                       <button
-                        onClick={() => deleteDrink(drink.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteDrink(drink.id);
+                        }}
                         className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         Delete
@@ -2597,6 +2745,178 @@
               </div>
             )}
 
+            {/* Drink Detail/Edit Modal */}
+            {showDrinkDetail && editingDrinkDetail && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white">Drink Details</h3>
+                    <button
+                      onClick={() => {
+                        setShowDrinkDetail(false);
+                        setSelectedDrink(null);
+                        setEditingDrinkDetail(null);
+                      }}
+                      className="text-slate-400 hover:text-white transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Read-only Fields */}
+                    <div className="space-y-2 pb-4 border-b border-white/10">
+                      <div>
+                        <label className="text-xs text-slate-400 mb-1 block">Name</label>
+                        <div className="text-white font-semibold">{editingDrinkDetail.name}</div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-400 mb-1 block">Category</label>
+                        <div className="text-white">{editingDrinkDetail.category}</div>
+                      </div>
+                      {selectedDrink && (
+                        <div>
+                          <label className="text-xs text-slate-400 mb-1 block">Created</label>
+                          <div className="text-slate-300 text-sm">{formatDateTimeForDisplay(selectedDrink.timestamp)}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Editable Fields */}
+                    <div className="space-y-4">
+                      {/* Date/Time */}
+                      <div>
+                        <label className="text-xs text-slate-400 mb-2 block">Date & Time</label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {['now', 'yesterday', 'lastNight', 'custom'].map(preset => (
+                            <button
+                              key={preset}
+                              onClick={() => {
+                                if (preset === 'custom') {
+                                  setEditingDrinkDetail({ ...editingDrinkDetail, editDateTimePreset: 'custom' });
+                                } else {
+                                  const presetDateTime = applyDateTimePreset(preset);
+                                  if (presetDateTime) {
+                                    const date = new Date(presetDateTime);
+                                    setEditingDrinkDetail({
+                                      ...editingDrinkDetail,
+                                      editDate: date.toISOString().split('T')[0],
+                                      editTime: date.toTimeString().slice(0, 5),
+                                      editDateTimePreset: preset
+                                    });
+                                  }
+                                }
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                                editingDrinkDetail.editDateTimePreset === preset
+                                  ? 'bg-purple-500 text-white'
+                                  : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                              }`}
+                            >
+                              {preset === 'now' ? 'Now' : preset === 'yesterday' ? 'Yesterday' : preset === 'lastNight' ? 'Last Night' : 'Custom'}
+                            </button>
+                          ))}
+                        </div>
+                        {editingDrinkDetail.editDateTimePreset === 'custom' && (
+                          <div className="flex gap-2">
+                            <input
+                              type="date"
+                              value={editingDrinkDetail.editDate}
+                              onChange={(e) => setEditingDrinkDetail({ ...editingDrinkDetail, editDate: e.target.value })}
+                              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                            <input
+                              type="time"
+                              value={editingDrinkDetail.editTime}
+                              onChange={(e) => setEditingDrinkDetail({ ...editingDrinkDetail, editTime: e.target.value })}
+                              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Calories */}
+                      <div>
+                        <label className="text-xs text-slate-400 mb-2 block">Calories</label>
+                        <input
+                          type="number"
+                          value={editingDrinkDetail.calories || ''}
+                          onChange={(e) => setEditingDrinkDetail({ ...editingDrinkDetail, calories: e.target.value ? parseInt(e.target.value) : null })}
+                          placeholder="Enter calories"
+                          className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                      </div>
+
+                      {/* Cost */}
+                      <div>
+                        <label className="text-xs text-slate-400 mb-2 block">Cost</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editingDrinkDetail.cost || ''}
+                            onChange={(e) => setEditingDrinkDetail({ ...editingDrinkDetail, cost: e.target.value ? parseFloat(e.target.value) : null })}
+                            placeholder="0.00"
+                            className="w-full bg-white/10 border border-white/20 rounded-lg pl-8 pr-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-4 border-t border-white/10">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const timestamp = parseDateTimeInput(editingDrinkDetail.editDate, editingDrinkDetail.editTime);
+                            await updateDrink(selectedDrink.id, {
+                              timestamp: timestamp || selectedDrink.timestamp,
+                              calories: editingDrinkDetail.calories,
+                              cost: editingDrinkDetail.cost
+                            });
+                            setShowDrinkDetail(false);
+                            setSelectedDrink(null);
+                            setEditingDrinkDetail(null);
+                          } catch (error) {
+                            console.error('Error saving drink:', error);
+                          }
+                        }}
+                        className="flex-1 bg-purple-500 hover:bg-purple-600 rounded-lg py-2 font-semibold transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDrinkDetail(false);
+                          setSelectedDrink(null);
+                          setEditingDrinkDetail(null);
+                        }}
+                        className="px-6 bg-white/10 hover:bg-white/20 rounded-lg py-2 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (confirm('Are you sure you want to delete this drink?')) {
+                            await deleteDrink(selectedDrink.id);
+                            setShowDrinkDetail(false);
+                            setSelectedDrink(null);
+                            setEditingDrinkDetail(null);
+                          }
+                        }}
+                        className="px-4 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg py-2 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Fixed "+ Log a Drink" Button */}
             {!showOtherForm && (
               <button
@@ -2604,6 +2924,8 @@
                   setShowOtherForm(true);
                   setFreeformText('');
                   setParsedDrinks([]);
+                  setFreeformDateTime(null);
+                  setShowFreeformDateTime(false);
                 }}
                 className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 bg-purple-500 hover:bg-purple-600 text-white rounded-full p-4 sm:p-5 shadow-2xl z-40 transition-all hover:scale-110 active:scale-95 flex items-center justify-center gap-2 font-semibold text-base sm:text-lg"
                 style={{ boxShadow: '0 10px 25px rgba(168, 85, 247, 0.4)' }}
@@ -2646,6 +2968,82 @@
                       <p className="text-xs text-slate-400 mt-2">
                         Type multiple drinks separated by commas or "and". The system will automatically parse and recognize them.
                       </p>
+                    </div>
+
+                    {/* Date/Time Selection */}
+                    <div className="border-t border-white/10 pt-4">
+                      <button
+                        onClick={() => setShowFreeformDateTime(!showFreeformDateTime)}
+                        className="flex items-center justify-between w-full text-sm text-slate-300 hover:text-white transition-colors"
+                      >
+                        <span>Set Date/Time (optional)</span>
+                        <svg 
+                          className={`w-4 h-4 transition-transform ${showFreeformDateTime ? 'rotate-180' : ''}`}
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {showFreeformDateTime && (
+                        <div className="mt-3 space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            {['now', 'yesterday', 'lastNight', 'custom'].map(preset => (
+                              <button
+                                key={preset}
+                                onClick={() => {
+                                  if (preset === 'custom') {
+                                    setFreeformDateTime({ preset: 'custom', date: '', time: '' });
+                                  } else {
+                                    const presetDateTime = applyDateTimePreset(preset);
+                                    if (presetDateTime) {
+                                      const date = new Date(presetDateTime);
+                                      setFreeformDateTime({
+                                        preset: preset,
+                                        date: date.toISOString().split('T')[0],
+                                        time: date.toTimeString().slice(0, 5)
+                                      });
+                                    }
+                                  }
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                                  freeformDateTime?.preset === preset
+                                    ? 'bg-purple-500 text-white'
+                                    : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                                }`}
+                              >
+                                {preset === 'now' ? 'Now' : preset === 'yesterday' ? 'Yesterday' : preset === 'lastNight' ? 'Last Night' : 'Custom'}
+                              </button>
+                            ))}
+                          </div>
+                          {freeformDateTime?.preset === 'custom' && (
+                            <div className="flex gap-2">
+                              <input
+                                type="date"
+                                value={freeformDateTime.date || ''}
+                                onChange={(e) => setFreeformDateTime({ ...freeformDateTime, date: e.target.value })}
+                                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                              />
+                              <input
+                                type="time"
+                                value={freeformDateTime.time || ''}
+                                onChange={(e) => setFreeformDateTime({ ...freeformDateTime, time: e.target.value })}
+                                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                              />
+                            </div>
+                          )}
+                          {freeformDateTime && freeformDateTime.preset !== 'custom' && (
+                            <div className="text-xs text-slate-400">
+                              {freeformDateTime.preset === 'now' 
+                                ? 'Drinks will be logged with current date/time'
+                                : freeformDateTime.preset === 'yesterday'
+                                ? 'Drinks will be logged for yesterday'
+                                : 'Drinks will be logged for last night (11 PM)'}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Parsed Drinks Preview */}
