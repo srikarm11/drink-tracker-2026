@@ -185,6 +185,11 @@
       // Date/time selection for freeform logging
       const [freeformDateTime, setFreeformDateTime] = useState(null); // null = use "now"
       const [showFreeformDateTime, setShowFreeformDateTime] = useState(false);
+      
+      // Quick Log date/time editing
+      const [quickLogDateTime, setQuickLogDateTime] = useState(null);
+      const [showQuickLogDateTime, setShowQuickLogDateTime] = useState(false);
+      const [pendingQuickLogDrink, setPendingQuickLogDrink] = useState(null);
 
       // Parsing Functions
       const numberWords = {
@@ -264,8 +269,90 @@
         return null;
       };
 
+      const parseNaturalLanguageDateTime = (text) => {
+        const normalized = text.toLowerCase().trim();
+        const now = new Date();
+        let dateTime = null;
+        
+        // Common patterns
+        if (normalized.includes('last night') || normalized.includes('yesterday night')) {
+          dateTime = new Date(now);
+          dateTime.setDate(now.getDate() - 1);
+          dateTime.setHours(23, 0, 0, 0); // 11 PM
+        } else if (normalized.includes('yesterday')) {
+          dateTime = new Date(now);
+          dateTime.setDate(now.getDate() - 1);
+          if (now.getHours() < 8) {
+            dateTime.setHours(20, 0, 0, 0); // 8 PM if early morning
+          } else {
+            dateTime.setHours(now.getHours(), now.getMinutes(), 0, 0);
+          }
+        } else if (normalized.includes('today')) {
+          dateTime = new Date(now);
+        } else if (normalized.includes('this morning')) {
+          dateTime = new Date(now);
+          dateTime.setHours(9, 0, 0, 0);
+        } else if (normalized.includes('this afternoon')) {
+          dateTime = new Date(now);
+          dateTime.setHours(15, 0, 0, 0);
+        } else if (normalized.includes('this evening') || normalized.includes('tonight')) {
+          dateTime = new Date(now);
+          dateTime.setHours(20, 0, 0, 0);
+        } else {
+          // Try to parse "X days ago"
+          const daysAgoMatch = normalized.match(/(\d+)\s*days?\s*ago/i);
+          if (daysAgoMatch) {
+            const days = parseInt(daysAgoMatch[1]);
+            dateTime = new Date(now);
+            dateTime.setDate(now.getDate() - days);
+            dateTime.setHours(20, 0, 0, 0); // Default to 8 PM
+          } else {
+            // Try day names (last friday, last saturday, etc.)
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            for (let i = 0; i < dayNames.length; i++) {
+              if (normalized.includes(`last ${dayNames[i]}`) || normalized.includes(`on ${dayNames[i]}`)) {
+                dateTime = new Date(now);
+                const currentDay = now.getDay();
+                const targetDay = i;
+                let daysBack = currentDay - targetDay;
+                if (daysBack <= 0) daysBack += 7; // Go back to last week
+                dateTime.setDate(now.getDate() - daysBack);
+                dateTime.setHours(20, 0, 0, 0);
+                break;
+              }
+            }
+          }
+        }
+        
+        return dateTime ? dateTime.toISOString() : null;
+      };
+
+      const extractDateTimeFromText = (text) => {
+        // Look for date/time patterns at the end of the text
+        const dateTimePatterns = [
+          /(last\s+night|yesterday\s+night)/i,
+          /(yesterday)/i,
+          /(today|this\s+morning|this\s+afternoon|this\s+evening|tonight)/i,
+          /(\d+\s+days?\s+ago)/i,
+          /(last\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday))/i,
+          /(on\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday))/i
+        ];
+        
+        for (const pattern of dateTimePatterns) {
+          const match = text.match(pattern);
+          if (match) {
+            return parseNaturalLanguageDateTime(match[0]);
+          }
+        }
+        
+        return null;
+      };
+
       const parseFreeformText = (text) => {
         if (!text || !text.trim()) return [];
+        
+        // Extract date/time from the entire text (applies to all drinks)
+        const extractedDateTime = extractDateTimeFromText(text);
         
         const results = [];
         // Split by common delimiters: comma, "and", "&"
@@ -276,6 +363,9 @@
           // Remove quantity from text to get drink name
           let drinkText = part.replace(/\d+\s*(x|×)?/i, '').trim();
           drinkText = drinkText.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)\b/gi, '').trim();
+          
+          // Remove date/time expressions from drink text
+          drinkText = drinkText.replace(/\b(last\s+night|yesterday\s+night|yesterday|today|this\s+morning|this\s+afternoon|this\s+evening|tonight|\d+\s+days?\s+ago|last\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)|on\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday))\b/gi, '').trim();
           
           if (!drinkText) continue;
           
@@ -289,7 +379,8 @@
                 calories: matchedDrink.calories,
                 cost: matchedDrink.cost,
                 originalText: part.trim(),
-                matched: true
+                matched: true,
+                timestamp: extractedDateTime || null // Use extracted date/time or null (will default to "now")
               });
             }
           } else {
@@ -301,7 +392,8 @@
                 calories: null,
                 cost: null,
                 originalText: part.trim(),
-                matched: false
+                matched: false,
+                timestamp: extractedDateTime || null
               });
             }
           }
@@ -811,7 +903,7 @@
         return name.toLowerCase().trim();
       };
 
-      const quickAddDrink = async (name, category) => {
+      const quickAddDrinkWithTimestamp = async (name, category, timestamp) => {
         if (!user) return;
         
         try {
@@ -830,7 +922,7 @@
             category: category,
             calories: matchedDrink ? matchedDrink.calories : null,
             cost: matchedDrink ? matchedDrink.cost : null,
-            timestamp: new Date().toISOString(),
+            timestamp: timestamp || new Date().toISOString(),
             user_id: currentSession.user.id
           };
 
@@ -860,6 +952,11 @@
           
           alert(`Failed to add drink: ${errorMessage}\n\nCheck the browser console (F12) for more details.\n\nIf you see "column" or "permission" errors, you may need to set up your Supabase database. See SUPABASE_SETUP.md for instructions.`);
         }
+      };
+
+      const quickAddDrink = async (name, category) => {
+        // Default to current time
+        await quickAddDrinkWithTimestamp(name, category, new Date().toISOString());
       };
 
       const addCustomDrink = async (category) => {
@@ -921,29 +1018,37 @@
             throw new Error('No valid session found. Please sign in again.');
           }
           
-          // Determine timestamp - use freeformDateTime if set, otherwise use "now"
-          let timestamp;
-          if (freeformDateTime) {
-            if (freeformDateTime.preset === 'custom' && freeformDateTime.date) {
-              timestamp = parseDateTimeInput(freeformDateTime.date, freeformDateTime.time) || new Date().toISOString();
-            } else if (freeformDateTime.preset !== 'custom') {
-              const presetDateTime = applyDateTimePreset(freeformDateTime.preset);
-              timestamp = presetDateTime || new Date().toISOString();
+          // Determine timestamp - priority: drink.timestamp (from NLP) > freeformDateTime > "now"
+          const drinksToInsert = drinksToLog.map(drink => {
+            let timestamp;
+            
+            // First check if drink has timestamp from NLP parsing
+            if (drink.timestamp) {
+              timestamp = drink.timestamp;
+            } else if (freeformDateTime) {
+              // Use freeform date/time selection
+              if (freeformDateTime.preset === 'custom' && freeformDateTime.date) {
+                timestamp = parseDateTimeInput(freeformDateTime.date, freeformDateTime.time) || new Date().toISOString();
+              } else if (freeformDateTime.preset !== 'custom') {
+                const presetDateTime = applyDateTimePreset(freeformDateTime.preset);
+                timestamp = presetDateTime || new Date().toISOString();
+              } else {
+                timestamp = new Date().toISOString();
+              }
             } else {
+              // Default to "now"
               timestamp = new Date().toISOString();
             }
-          } else {
-            timestamp = new Date().toISOString();
-          }
-          
-          const drinksToInsert = drinksToLog.map(drink => ({
-            name: drink.name.trim(),
-            category: drink.category,
-            calories: drink.calories,
-            cost: drink.cost,
-            timestamp: timestamp,
-            user_id: currentSession.user.id
-          }));
+            
+            return {
+              name: drink.name.trim(),
+              category: drink.category,
+              calories: drink.calories,
+              cost: drink.cost,
+              timestamp: timestamp,
+              user_id: currentSession.user.id
+            };
+          });
 
           const { data, error } = await supabase
             .from('drinks')
@@ -2404,7 +2509,10 @@
                         if (editMode) {
                           startEditingDrink(drink);
                         } else {
-                          quickAddDrink(drink.name, drink.category);
+                          // Open date/time selector for quick log
+                          setPendingQuickLogDrink(drink);
+                          setQuickLogDateTime({ preset: 'now', date: '', time: '' });
+                          setShowQuickLogDateTime(true);
                         }
                       }}
                       className={`w-full bg-white/10 backdrop-blur rounded-xl py-3 font-semibold transition-all ${
@@ -2441,6 +2549,126 @@
                 )}
               </div>
             </div>
+
+            {/* Quick Log Date/Time Modal */}
+            {showQuickLogDateTime && pendingQuickLogDrink && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white">Log {pendingQuickLogDrink.name}</h3>
+                    <button
+                      onClick={() => {
+                        setShowQuickLogDateTime(false);
+                        setPendingQuickLogDrink(null);
+                        setQuickLogDateTime(null);
+                      }}
+                      className="text-slate-400 hover:text-white transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs text-slate-400 mb-2 block">Date & Time</label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {['now', 'yesterday', 'lastNight', 'custom'].map(preset => (
+                          <button
+                            key={preset}
+                            onClick={() => {
+                              if (preset === 'custom') {
+                                setQuickLogDateTime({ preset: 'custom', date: '', time: '' });
+                              } else {
+                                const presetDateTime = applyDateTimePreset(preset);
+                                if (presetDateTime) {
+                                  const date = new Date(presetDateTime);
+                                  setQuickLogDateTime({
+                                    preset: preset,
+                                    date: date.toISOString().split('T')[0],
+                                    time: date.toTimeString().slice(0, 5)
+                                  });
+                                }
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                              quickLogDateTime?.preset === preset
+                                ? 'bg-purple-500 text-white'
+                                : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                            }`}
+                          >
+                            {preset === 'now' ? 'Now' : preset === 'yesterday' ? 'Yesterday' : preset === 'lastNight' ? 'Last Night' : 'Custom'}
+                          </button>
+                        ))}
+                      </div>
+                      {quickLogDateTime?.preset === 'custom' && (
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={quickLogDateTime.date || ''}
+                            onChange={(e) => setQuickLogDateTime({ ...quickLogDateTime, date: e.target.value })}
+                            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                          />
+                          <input
+                            type="time"
+                            value={quickLogDateTime.time || ''}
+                            onChange={(e) => setQuickLogDateTime({ ...quickLogDateTime, time: e.target.value })}
+                            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={async () => {
+                          let timestamp;
+                          if (quickLogDateTime) {
+                            if (quickLogDateTime.preset === 'custom' && quickLogDateTime.date) {
+                              timestamp = parseDateTimeInput(quickLogDateTime.date, quickLogDateTime.time) || new Date().toISOString();
+                            } else if (quickLogDateTime.preset !== 'custom') {
+                              const presetDateTime = applyDateTimePreset(quickLogDateTime.preset);
+                              timestamp = presetDateTime || new Date().toISOString();
+                            } else {
+                              timestamp = new Date().toISOString();
+                            }
+                          } else {
+                            timestamp = new Date().toISOString();
+                          }
+                          
+                          // Create a temporary drink object with the timestamp
+                          const drinkWithTimestamp = {
+                            name: pendingQuickLogDrink.name,
+                            category: pendingQuickLogDrink.category,
+                            timestamp: timestamp
+                          };
+                          
+                          // Use quickAddDrink but we need to modify it to accept timestamp
+                          // For now, we'll call it and then update the timestamp
+                          await quickAddDrinkWithTimestamp(pendingQuickLogDrink.name, pendingQuickLogDrink.category, timestamp);
+                          
+                          setShowQuickLogDateTime(false);
+                          setPendingQuickLogDrink(null);
+                          setQuickLogDateTime(null);
+                        }}
+                        className="flex-1 bg-purple-500 hover:bg-purple-600 rounded-lg py-2 font-semibold transition-colors"
+                      >
+                        Log Drink
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowQuickLogDateTime(false);
+                          setPendingQuickLogDrink(null);
+                          setQuickLogDateTime(null);
+                        }}
+                        className="px-6 bg-white/10 hover:bg-white/20 rounded-lg py-2 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
@@ -2959,14 +3187,14 @@
                   <div className="space-y-4">
                     <div>
                       <textarea
-                        placeholder="Enter drinks naturally, e.g., '2 beers, 1 wine, 3 cocktails' or '1 dirty martini, 1 negroni, and 2 guinness'"
+                        placeholder="Enter drinks naturally, e.g., '2 beers, 1 wine, 3 cocktails' or '1 negroni last night' or '2 guinness yesterday'"
                         value={freeformText}
                         onChange={(e) => setFreeformText(e.target.value)}
                         className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-400 min-h-[120px] resize-y"
                         autoFocus
                       />
                       <p className="text-xs text-slate-400 mt-2">
-                        Type multiple drinks separated by commas or "and". The system will automatically parse and recognize them.
+                        Type multiple drinks separated by commas or "and". Include date/time like "last night", "yesterday", "2 days ago", or "last Friday" to set when drinks were consumed.
                       </p>
                     </div>
 
@@ -3073,7 +3301,7 @@
                                     <option value="Cocktail">Cocktail</option>
                                   </select>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
+                                <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
                                   {drink.matched === false && (
                                     <span className="text-yellow-400">⚠ Not recognized - please verify</span>
                                   )}
@@ -3082,6 +3310,11 @@
                                   )}
                                   {drink.cost && (
                                     <span>Cost: ${drink.cost}</span>
+                                  )}
+                                  {drink.timestamp && (
+                                    <span className="text-purple-400">
+                                      📅 {formatDateTimeForDisplay(drink.timestamp)}
+                                    </span>
                                   )}
                                 </div>
                               </div>
